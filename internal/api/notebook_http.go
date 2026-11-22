@@ -223,12 +223,16 @@ func (s *server) handleNotebookAccounts(w http.ResponseWriter, r *http.Request) 
 			writeNotebookError(w, &notebook.APIError{Status: 400, Code: "invalid_request", Message: err.Error()})
 			return
 		}
-		account, err := s.config.Notebook.CreateWithSource(r.Context(), input.Label, input.SourceAccountID)
+		account, created, err := s.config.Notebook.CreateWithSourceResult(r.Context(), input.Label, input.SourceAccountID)
 		if err != nil {
 			writeNotebookError(w, err)
 			return
 		}
-		writeJSON(w, 201, map[string]any{"account": account})
+		if created {
+			writeJSON(w, 201, map[string]any{"account": account, "created": true})
+		} else {
+			writeJSON(w, 200, map[string]any{"account": account, "created": false})
+		}
 	}
 }
 func (s *server) handleNotebookAccountAction(w http.ResponseWriter, r *http.Request) {

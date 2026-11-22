@@ -27,6 +27,21 @@ const pending = ref(false)
 const label = ref('')
 const error = ref('')
 const notice = ref('')
+// Keep legacy duplicates visible; removing them silently can break
+// external notebook:<account-id>:<notebook-id> model references.
+const boundCount = (sourceID: string) =>
+  accounts.value.filter((a) => a.source_account_id === sourceID).length
+const duplicateBindingCount = (a: Account) =>
+  a.source_account_id ? Math.max(0, boundCount(a.source_account_id) - 1) : 0
+const otherPlaygroundSameEmail = (a: Account) =>
+  a.email
+    ? accounts.value.filter(
+        (other) =>
+          other.id !== a.id &&
+          other.email?.toLowerCase() === a.email?.toLowerCase() &&
+          other.source_account_id !== a.source_account_id,
+      ).length
+    : 0
 async function call<T>(url: string, method = 'GET', body?: unknown): Promise<T> {
   const r = await fetch(url, {
     method,
@@ -64,18 +79,27 @@ async function add() {
   error.value = ''
   notice.value = ''
   try {
-    const x = await call<{ account: Account }>('/api/notebook/accounts', 'POST', {
+    const chosenSource = sourceAccountID.value
+    const x = await call<{ account: Account; created: boolean }>('/api/notebook/accounts', 'POST', {
       label: label.value.trim(),
-      source_account_id: sourceAccountID.value,
+      source_account_id: chosenSource,
     })
     label.value = ''
+    // The server returns the original Notebook account ID for an existing
+    // Playground binding, preserving model IDs, counters and quota state.
     await call(`/api/notebook/accounts/${encodeURIComponent(x.account.id)}/login`, 'POST')
-    notice.value = sourceAccountID.value
-      ? '已复用 Playground 账号会话读取 Notebook，无需额外 Chrome（支持 Camoufox / SpiderMonkey）。'
-      : '已打开 Chrome，完成 Google 登录后刷新账号状态。'
     await refresh()
+    notice.value = !x.created
+      ? '已找到现有 Notebook 绑定，使用原账号重新认证；未创建新的账号记录。'
+      : chosenSource
+        ? '已使用关联 Playground 账号读取 Notebook，无需额外 Chrome。'
+        : '已打开 Chrome，完成 Google 登录后刷新账号状态。'
   } catch (e) {
-    error.value = String(e)
+    const message = String(e)
+    // The account record exists before login. Render it even if login fails,
+    // so the next attempt reuses that ID instead of adding another.
+    await refresh()
+    error.value = message
   } finally {
     pending.value = false
   }
@@ -142,6 +166,7 @@ onActivated(refresh)
         <option value="">独立 Chrome（兼容模式）</option>
         <option v-for="source in sources" :key="source.id" :value="source.id">
           复用 {{ source.label }}（{{ source.state }}）
+          {{ boundCount(source.id) ? '· 已绑定' : '' }}
         </option>
       </select>
       <button
@@ -150,7 +175,7 @@ onActivated(refresh)
         :disabled="pending"
         @click="add"
       >
-        添加并登录
+        {{ sourceAccountID && boundCount(sourceAccountID) ? '重新登录已有绑定' : '添加并登录' }}
       </button>
     </div>
     <p v-if="error" role="alert" class="mb-2 text-sm text-red-400">{{ error }}</p>
@@ -169,6 +194,14 @@ onActivated(refresh)
           <span class="text-xs text-gray-400">{{ a.state }}</span>
         </div>
         <p v-if="a.error" class="mt-2 text-xs text-red-400">{{ a.error }}</p>
+        <p v-if="duplicateBindingCount(a)" class="mt-2 text-xs text-yellow-300">
+          检测到同一 Playground 来源的 {{ duplicateBindingCount(a) }} 条旧版重复记录。
+          不会自动删除；请确认正在使用的 Notebook 模型 ID 后手动清理。
+        </p>
+        <p v-else-if="otherPlaygroundSameEmail(a)" class="mt-2 text-xs text-yellow-300">
+          另有 {{ otherPlaygroundSameEmail(a) }} 条记录使用相同 Google 邮箱，但关联不同 Playground 凭证。
+          其 Google 额度并不独立。
+        </p>
         <p
           v-if="a.cooldown_until && new Date(a.cooldown_until) > new Date()"
           class="mt-2 text-xs text-yellow-300"

@@ -81,3 +81,26 @@ silent Chrome fallback** is performed for linked accounts of either backend.
 - Real Google login and Notebook RPC compatibility remain to be tested on
   a signed-in Windows installation. Passing CI does not establish upstream
   functionality.
+
+## Idempotent Playground account binding
+
+- `POST /api/notebook/accounts` with `source_account_id` returns the
+  **existing** Notebook account when that exact Playground source has already
+  been bound: HTTP 200 with `{"created":false,"account":...}`. No new Notebook
+  ID, model namespace, usage counter, cooldown or login status is generated.
+- The first binding returns HTTP 201 with `{"created":true,"account":...}`.
+- Repeated login failures do not require creating another Notebook record.
+  The Account page reloads records even if the login request fails.
+- Backend source-ID deduplication is atomic across concurrent create requests,
+  including when Playground source discovery takes time.
+- A saved association can be reused while Playground source discovery is
+  temporarily unavailable. A **new** association still requires validation.
+- Existing duplicate records are **not automatically merged or deleted**.
+  They may be referenced by external Notebook model IDs and hold separate
+  historical local counters. The UI flags these legacy duplicates for manual
+  review; delete one only after checking which account ID clients use.
+- Equal Google email addresses across distinct Playground source IDs produce
+  a warning, not a forced merge. Google quotas are still tied to the same
+  actual Google identity even when local records differ.
+- Independent Chrome Notebook accounts are still created separately and are
+  not deduplicated by email.

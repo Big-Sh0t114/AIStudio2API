@@ -3,9 +3,7 @@ package notebook
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
 )
 
 // SharedPage executes Notebook's origin-local RPC in a borrowed browser tab.
@@ -46,43 +44,12 @@ func (p *Provider) Sources(ctx context.Context) ([]SourceAccount, error) {
 	}
 	return p.shared.Sources(ctx)
 }
+// CreateWithSource binds a Playground account idempotently. It remains a
+// two-return wrapper for existing callers; the HTTP handler uses the variant
+// that also reports whether a record was actually created.
 func (p *Provider) CreateWithSource(ctx context.Context, label, sourceID string) (AccountStatus, error) {
-	sourceID = strings.TrimSpace(sourceID)
-	if sourceID == "" {
-		return p.Create(label)
-	}
-	if p.shared == nil {
-		return AccountStatus{}, &APIError{Status: 503, Code: "shared_browser_unavailable", Message: "Shared Playground browser unavailable"}
-	}
-	accounts, err := p.shared.Sources(ctx)
-	if err != nil {
-		return AccountStatus{}, err
-	}
-	found := false
-	for _, v := range accounts {
-		if v.ID == sourceID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return AccountStatus{}, &APIError{Status: 400, Code: "unknown_source_account", Message: fmt.Sprintf("Playground account %q is not enabled", sourceID)}
-	}
-	label = strings.TrimSpace(label)
-	if len(label) > 120 {
-		return AccountStatus{}, &APIError{Status: 400, Code: "invalid_request", Message: "Label too long"}
-	}
-	if label == "" {
-		label = "Shared Playground Notebook"
-	}
-	st := AccountStatus{ID: newID(), Label: label, SourceAccountID: sourceID, State: "auth_required", Notebooks: []Notebook{}}
-	p.mu.Lock()
-	p.accounts[st.ID] = &account{status: st}
-	p.mu.Unlock()
-	if err := p.save(); err != nil {
-		return st, fmt.Errorf("save linked notebook: %w", err)
-	}
-	return st, nil
+	account, _, err := p.CreateWithSourceResult(ctx, label, sourceID)
+	return account, err
 }
 
 // Caller holds the Notebook account mutex. Closing this object closes only
