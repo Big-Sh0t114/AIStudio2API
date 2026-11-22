@@ -70,10 +70,11 @@ type Answer struct {
 type persistent struct {
 	Accounts []AccountStatus `json:"accounts"`
 }
+
 // notebookSourceSnapshot contains only source IDs/titles; no chat history.
 type notebookSourceSnapshot struct {
-	ids []any
-	titles map[string]string
+	ids     []any
+	titles  map[string]string
 	expires time.Time
 }
 type account struct {
