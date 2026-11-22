@@ -392,7 +392,9 @@ const statusOptions = computed(() =>
       </div>
     </header>
     <details class="max-h-[48vh] shrink-0 overflow-y-auto border-b border-line">
-      <summary class="page-x cursor-pointer py-2 text-sm font-medium text-gray-300">Gemini Notebook · 配额</summary>
+      <summary class="page-x cursor-pointer py-2 text-sm font-medium text-gray-300">
+        Gemini Notebook · 配额
+      </summary>
       <NotebookPanel mode="usage" />
     </details>
 
