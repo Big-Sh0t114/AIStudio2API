@@ -207,3 +207,36 @@ usable ready source IDs. The error now includes ingestion counts:
 The adapter handles plain, nested and Drive-backed IDs and older rows without
 a status slot. Explicitly pending, failed, deleted, and unknown-status sources
 are not sent to generation. The 60-second ready-source cache remains in place.
+
+## Empty Notebook chats (Google AI Pro / Ultra)
+
+Google documents that Pro/Ultra **agentic Notebook chat can operate without
+uploaded sources**. The legacy open-notebooklm-based Go provider previously
+returned `sources_not_ready` before any request reached Google, even when the
+Notebook had exactly zero sources.
+
+- The provider now differentiates **an entirely empty Notebook** (the
+  `rLM1Ne` project row contains zero source entries) from a Notebook that
+  contains sources but none are ready.
+- For an entirely empty Notebook, the Go adapter sends the existing
+  `GenerateFreeFormStreamed` RPC with a **non-null empty source array `[]`**.
+  This is supported by the request layout in the community notebooklm-py
+  streamed-chat builder. The response uses the same stateless OpenAI-compatible
+  message history and the same Notebook Google-account session and quota.
+- The zero-source catalog is cached for 60 seconds like other source listings.
+  No dummy document or background Google source is added to the notebook.
+- A Notebook with only processing, failed or unknown sources still returns
+  `400 sources_not_ready`, with the source diagnostic counts.
+- If Google's backend rejects a no-source chat payload with
+  `INVALID_ARGUMENT`, the API returns `502 source_free_chat_unavailable`.
+  It **does not silently switch to Playground** and cannot claim that
+  Notebook agent mode ran successfully. Google controls Pro/Ultra entitlement.
+- **Scope:** This adds a source-free chat request path, not full cloud-computer
+  orchestration, code execution, web search, artifact retrieval, or agentic
+  tool events. The newer agentic chat protocol may differ from the legacy
+  streaming-chat RPC. Such operations require separate reverse engineering
+  and real authenticated traffic capture.
+- The code has mock-backed regression tests for successful empty-source
+  requests, no-source caching, upstream denial, and preserving ready-source
+  requirements on nonempty notebooks. It has not been tested against a live
+  Google Pro account in CI; verify the actual response on Windows.
