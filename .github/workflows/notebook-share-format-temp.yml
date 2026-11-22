@@ -1,0 +1,41 @@
+name: Format shared Notebook integration (temporary)
+
+on:
+  push:
+    branches: [feature/notebook-share-camoufox]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.18.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Format Notebook UI
+        working-directory: web
+        run: |
+          npm ci
+          npx vp fmt src/components/NotebookPanel.vue
+      - name: Format Go provider
+        shell: bash
+        run: |
+          gofmt -w internal/notebook/browser.go internal/notebook/provider.go internal/notebook/shared.go internal/notebook/shared_test.go internal/camoufoxnative/notebook.go internal/camoufoxnative/notebook_test.go internal/aistudio/runtime_native.go internal/app/app.go internal/app/notebook_shared.go internal/api/notebook_http.go internal/api/router.go
+      - name: Commit formatter changes
+        shell: bash
+        run: |
+          git diff --check
+          if git diff --quiet; then
+            echo "Already formatted"
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add web/src/components/NotebookPanel.vue internal/notebook internal/camoufoxnative/notebook.go internal/camoufoxnative/notebook_test.go internal/aistudio/runtime_native.go internal/app/app.go internal/app/notebook_shared.go internal/api/notebook_http.go internal/api/router.go
+          git commit -m "style(notebook): format shared browser integration"
+          git push origin HEAD:feature/notebook-share-camoufox
