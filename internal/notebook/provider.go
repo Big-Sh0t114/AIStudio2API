@@ -436,6 +436,7 @@ func prepareConversation(messages []Message) (string, []any, error) {
 	}
 	return question, history, nil
 }
+
 // chatSerial retains the original single-request browser lifecycle for
 // independent standalone Chrome accounts, which cannot safely share a CDP tab.
 func (p *Provider) chatSerial(ctx context.Context, model string, messages []Message) (Answer, error) {
