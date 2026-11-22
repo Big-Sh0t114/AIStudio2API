@@ -38,7 +38,13 @@ func (p *spiderNotebookPage) Fetch(ctx context.Context, method, target string, h
 	if errors.Is(err, aistudio.ErrNotebookAuthentication) {
 		return notebook.HTTPResponse{}, &notebook.APIError{
 			Status: 401, Code: "auth_required",
-			Message: "Linked Playground cookies do not authenticate NotebookLM; refresh the Google account or use standalone Chrome login",
+			Message: "NotebookLM redirected to Google sign-in: linked Playground cookies do not authenticate NotebookLM; reauthenticate the Google account or use standalone Chrome",
+		}
+	}
+	if errors.Is(err, aistudio.ErrNotebookRedirect) {
+		return notebook.HTTPResponse{}, &notebook.APIError{
+			Status: 502, Code: "notebook_redirect",
+			Message: err.Error(),
 		}
 	}
 	if err != nil {
