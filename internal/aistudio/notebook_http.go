@@ -40,7 +40,6 @@ func notebookRedirectTarget(current *url.URL, location string) (*url.URL, error)
 	default:
 		return nil, fmt.Errorf("%w: destination outside NotebookLM / Google account login (%s)", ErrNotebookRedirect, next.Hostname())
 	}
-	return next, nil
 }
 
 // UsesSpiderMonkey reports whether the active worker is the native Go HTTP +
