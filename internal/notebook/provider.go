@@ -92,6 +92,7 @@ type Provider struct {
 	root     string
 	accounts map[string]*account
 	shared   SharedSessions
+	gates    map[string]*notebookGate // bounded per-Playground-source concurrency
 }
 
 func New(root string) *Provider {
@@ -435,7 +436,9 @@ func prepareConversation(messages []Message) (string, []any, error) {
 	}
 	return question, history, nil
 }
-func (p *Provider) Chat(ctx context.Context, model string, messages []Message) (Answer, error) {
+// chatSerial retains the original single-request browser lifecycle for
+// independent standalone Chrome accounts, which cannot safely share a CDP tab.
+func (p *Provider) chatSerial(ctx context.Context, model string, messages []Message) (Answer, error) {
 	accountID, notebookID, err := splitModel(model)
 	if err != nil {
 		return Answer{}, err

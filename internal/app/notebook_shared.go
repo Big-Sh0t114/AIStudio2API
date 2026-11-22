@@ -82,17 +82,17 @@ func (s *notebookSharedSessions) Open(ctx context.Context, accountID string) (no
 	}()
 	// Block resets and idle eviction while the borrowed tab is active.
 	// AI Studio requests may still use the existing worker concurrently.
-	acc.startupMu.Lock()
+	acc.startupMu.RLock()
 	acc.mu.Lock()
 	runtime := acc.worker
 	acc.mu.Unlock()
 	if runtime == nil {
-		acc.startupMu.Unlock()
+		acc.startupMu.RUnlock()
 		return nil, errors.New("Playground worker stopped during Notebook setup")
 	}
 	phase := runtime.State().Phase
 	if phase != aistudio.WorkerReady && phase != aistudio.WorkerBusy {
-		acc.startupMu.Unlock()
+		acc.startupMu.RUnlock()
 		return nil, errors.New("Playground browser worker is not ready")
 	}
 	var page notebook.SharedPage
@@ -103,7 +103,7 @@ func (s *notebookSharedSessions) Open(ctx context.Context, accountID string) (no
 	} else {
 		page, err = runtime.OpenNotebookPage(ctx)
 		if err != nil {
-			acc.startupMu.Unlock()
+			acc.startupMu.RUnlock()
 			return nil, err
 		}
 	}
@@ -112,7 +112,7 @@ func (s *notebookSharedSessions) Open(ctx context.Context, accountID string) (no
 	leased := &notebookSharedPage{
 		SharedPage: page,
 		release: func() {
-			acc.startupMu.Unlock()
+			acc.startupMu.RUnlock()
 			releaseActivity()
 			done()
 		},

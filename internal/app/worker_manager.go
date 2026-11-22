@@ -54,7 +54,7 @@ type accountWorkerManager struct {
 
 type accountWorker struct {
 	mu             sync.Mutex
-	startupMu      sync.Mutex
+	startupMu      sync.RWMutex // Notebook borrows read locks; lifecycle transitions take write lock
 	id             string
 	label          string
 	config         camoufoxnative.Options
