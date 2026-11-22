@@ -17,14 +17,14 @@ import (
 // Config 定义公开 API 服务配置
 type Config struct {
 	// PickPath 以系统对话框选择账户目录并返回选中的路径，用户取消时返回空串；只在桌面版提供
-	PickPath         func(start string) (string, error)
-	APIKey           string
-	Notebook         *notebook.Provider
+	PickPath           func(start string) (string, error)
+	APIKey             string
+	Notebook           *notebook.Provider
 	NotebookAuthorized func(key, email string) bool
-	Admin            AdminService
-	AdminAuthEnabled bool
-	AdminUsername    string
-	AdminPassword    string
+	Admin              AdminService
+	AdminAuthEnabled   bool
+	AdminUsername      string
+	AdminPassword      string
 	// AdminSessionPath 是记住我的管理会话文件
 	AdminSessionPath string
 	Ledger           RequestLedger
@@ -153,6 +153,7 @@ func NewHandler(service aistudio.Service, config Config) http.Handler {
 	control := http.NewServeMux()
 	control.HandleFunc("GET /api/status", s.handleStatus)
 	control.HandleFunc("GET /api/models", s.handleAdminModels)
+	control.HandleFunc("GET /api/notebook/sources", s.handleNotebookSources)
 	control.HandleFunc("GET /api/notebook/accounts", s.handleNotebookAccounts)
 	control.HandleFunc("POST /api/notebook/accounts", s.handleNotebookAccounts)
 	control.HandleFunc("POST /api/notebook/accounts/{account}/login", s.handleNotebookAccountAction)
@@ -207,8 +208,12 @@ func waitLaunchMiddleware(wait func(context.Context), catalogRead func(*http.Req
 // catalogRead 判断请求是否为已发布的公开目录能回答的模型查询：目录非空时的模型列表，或目录中已有该模型的单模型查询
 func (s *server) catalogRead(r *http.Request) bool {
 	if s.config.Notebook != nil {
-		if r.Method == http.MethodGet && (r.URL.Path == "/v1/models" || strings.HasPrefix(r.URL.Path, "/v1/models/notebook:")) { return true }
-		if r.Method == http.MethodPost && r.URL.Path == "/v1/chat/completions" && notebookModelInBody(r) { return true }
+		if r.Method == http.MethodGet && (r.URL.Path == "/v1/models" || strings.HasPrefix(r.URL.Path, "/v1/models/notebook:")) {
+			return true
+		}
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/chat/completions" && notebookModelInBody(r) {
+			return true
+		}
 	}
 	path := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, "/v1beta"), "/v1")
 	if r.Method != http.MethodGet || path != "/models" && (!strings.HasPrefix(path, "/models/") || strings.Contains(path, "/operations/")) {

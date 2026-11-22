@@ -547,6 +547,15 @@ func (worker *NativeWorker) Retire() {
 }
 
 // Close 关闭账户 WAA runtime
+// OpenNotebookPage borrows a temporary background Notebook tab from the
+// existing Camoufox runtime. It never opens a second Chrome process.
+func (worker *NativeWorker) OpenNotebookPage(ctx context.Context) (*camoufoxnative.NotebookPage, error) {
+	runtime, ok := worker.current().(camoufoxRuntime)
+	if !ok {
+		return nil, errors.New("This Playground worker uses SpiderMonkey, not Camoufox; shared Notebook requires Camoufox")
+	}
+	return runtime.Worker.OpenNotebookPage(ctx)
+}
 func (worker *NativeWorker) Close() error {
 	worker.operationMu.Lock()
 	defer worker.operationMu.Unlock()
