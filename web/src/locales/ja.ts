@@ -319,6 +319,8 @@ export const messages: Record<TranslationKey, string> = {
   'logs.endpoint': 'エンドポイント',
   'logs.inputTokens': '入力トークン',
   'logs.cachedTokens': 'キャッシュ済みトークン',
+  'logs.estimatedTokens': '推定',
+  'logs.estimatedTokensHelp': '送受信テキストのみの概算です。Notebook のソース、検索、内部推論は含まず、Google の請求トークン数ではありません。',
   'logs.totalTokens': '合計トークン',
   'logs.inputMessages': '入力メッセージ',
   'logs.proofLock': 'ページ待ち',
@@ -588,6 +590,7 @@ export const messages: Record<TranslationKey, string> = {
   'settings.mediaBaseURLHelp':
     'メディアリンクに使うサービスのアドレスです。空欄の場合は各リクエストのアクセス先を使います。',
   'settings.modelChannelsHelp': 'モデルを 1 つのチャネルに限定します。モデル詳細でも選べます',
+  'channel.notebook': 'NotebookLM',
   'channel.playground': 'Playground',
   'channel.build': 'Build',
   'channel.assistant': 'Build チャット',

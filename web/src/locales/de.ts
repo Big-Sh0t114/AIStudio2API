@@ -319,6 +319,8 @@ export const messages: Record<TranslationKey, string> = {
   'logs.endpoint': 'Endpunkt',
   'logs.inputTokens': 'Eingabe-Tokens',
   'logs.cachedTokens': 'Zwischengespeicherte Tokens',
+  'logs.estimatedTokens': 'Schätzung',
+  'logs.estimatedTokensHelp': 'Schätzung nur anhand von Anfrage- und Antworttext; ohne Notebook-Quellen und interne Verarbeitung. Keine von Google gemeldete Abrechnung.',
   'logs.totalTokens': 'Tokens gesamt',
   'logs.inputMessages': 'Eingabenachrichten',
   'logs.proofLock': 'Warten auf Seite',
@@ -589,6 +591,7 @@ export const messages: Record<TranslationKey, string> = {
     'Dienstadresse in Medienlinks. Leer verwendet die Adresse der jeweiligen Anfrage.',
   'settings.modelChannelsHelp':
     'Modell auf einen Kanal beschränken; auch in den Modelldetails wählbar',
+  'channel.notebook': 'NotebookLM',
   'channel.playground': 'Playground',
   'channel.build': 'Build',
   'channel.assistant': 'Build-Chat',

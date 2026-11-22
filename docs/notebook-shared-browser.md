@@ -136,3 +136,25 @@ Linked Playground accounts use an independent, source-keyed Notebook gate:
 The scheduler does **not** claim Google NotebookLM supports two simultaneous
 generations for every account. The upstream can still serialize, return 429
 or demand separate authentication. Validate with real multi-request traffic.
+
+## Notebook request logs and token usage
+
+- Notebook Chat Completions now records its public routing model ID,
+  `notebook:<account-id>:<notebook-id>`, in the shared request logger and
+  usage ledger, together with the Notebook account alias and channel.
+- The underlying model used by Google NotebookLM **is not disclosed** by the
+  private RPC. Do not interpret the public routing ID as a Google Gemini model
+  fingerprint or an upstream `provider_model`.
+- NotebookLM does not return reliable input/output/reasoning token usage.
+  To avoid blank request statistics, successful text-only requests now return
+  **estimated** prompt/completion/total token counts using a deterministic
+  character-based heuristic (CJK characters counted individually; other
+  characters approximately 4 per token).
+- These are explicitly marked `usage.estimated=true`,
+  `usage.estimation_method="text_only_heuristic"`, and
+  `X-Token-Usage-Estimated: true`. Request logs show an estimate label.
+  The estimation excludes Notebook source documents, internal retrieval,
+  hidden prompts, server reasoning, and any provider-side token accounting.
+- Do **not** use Notebook token estimates to determine billing, quotas or
+  upstream throughput. Google quota/cooldown events remain authoritative.
+- Existing request logs are not retroactively changed.

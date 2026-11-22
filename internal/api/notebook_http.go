@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Mag1cFall/AIStudio2API/internal/notebook"
+	"github.com/Mag1cFall/AIStudio2API/internal/aistudio"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 func notebookModelInBody(r *http.Request) bool {
@@ -32,6 +35,35 @@ func notebookModelInBody(r *http.Request) bool {
 	}
 	return bytes.Contains(bytes.ReplaceAll(prefix, []byte(" "), nil), []byte(`"model":"notebook:`))
 }
+// notebookTextTokens is a deliberately approximate text-only heuristic. The
+// private NotebookLM RPC does not expose a token usage count, and retrieved
+// sources, hidden prompts and internal reasoning are not represented here.
+func notebookTextTokens(value string) int64 {
+	var cjk, ordinary int64
+	for _, r := range value {
+		switch {
+		case unicode.Is(unicode.Han, r), unicode.Is(unicode.Hiragana, r),
+			unicode.Is(unicode.Katakana, r), unicode.Is(unicode.Hangul, r):
+			cjk++
+		default:
+			ordinary++
+		}
+	}
+	return cjk + (ordinary+3)/4
+}
+
+func notebookTextUsage(messages []notebook.Message, output string) *aistudio.Usage {
+	var prompt int64
+	for _, msg := range messages {
+		prompt += notebookTextTokens(msg.Content)
+	}
+	completion := notebookTextTokens(output)
+	return &aistudio.Usage{
+		InputTokens: prompt, OutputTokens: completion,
+		TotalTokens: prompt + completion, Estimated: true,
+	}
+}
+
 func notebookTextContent(raw json.RawMessage) (string, error) {
 	var text string
 	if json.Unmarshal(raw, &text) == nil {
@@ -115,6 +147,7 @@ func (s *server) handleNotebookOrChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	messages := make([]notebook.Message, 0, len(input.Messages))
+	characters := 0
 	for _, msg := range input.Messages {
 		content, err := notebookTextContent(msg.Content)
 		if err != nil {
@@ -122,9 +155,21 @@ func (s *server) handleNotebookOrChat(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		messages = append(messages, notebook.Message{Role: msg.Role, Content: content})
+		characters += utf8.RuneCountInString(content)
 	}
+	// NotebookLM does not disclose the underlying Gemini implementation.
+	// Record its exact public routing model and account alias, not a guess.
+	accountID := strings.TrimPrefix(input.Model, "notebook:")
+	if cut := strings.IndexByte(accountID, ':'); cut >= 0 {
+		accountID = accountID[:cut]
+	}
+	SetAccessLogChannel(r.Context(), "notebook")
+	SetAccessLogTextInput(r.Context(), len(messages), characters)
+	SetAccessLogTarget(r.Context(), input.Model, "notebook:"+accountID)
+	StartAccessLog(r.Context())
 	ans, err := s.config.Notebook.Chat(r.Context(), input.Model, messages)
 	if err != nil {
+		SetAccessLogError(r.Context(), err)
 		writeNotebookError(w, err)
 		return
 	}
@@ -139,10 +184,21 @@ func (s *server) handleNotebookOrChat(w http.ResponseWriter, r *http.Request) {
 			content += fmt.Sprintf("\n[%d] %s", c.Number, name)
 		}
 	}
+	usage := notebookTextUsage(messages, content)
+	SetAccessLogGenerationResult(r.Context(), usage, 0)
+	SetAccessLogFinishReason(r.Context(), "stop")
+	w.Header().Set("X-Token-Usage-Estimated", "true")
 	writeJSON(w, 200, map[string]any{
 		"id": newID("chatcmpl"), "object": "chat.completion", "created": time.Now().Unix(), "model": input.Model,
 		"choices":   []any{map[string]any{"index": 0, "message": map[string]any{"role": "assistant", "content": content}, "finish_reason": "stop"}},
 		"citations": ans.Citations,
+		"usage": map[string]any{
+			"prompt_tokens": usage.InputTokens,
+			"completion_tokens": usage.OutputTokens,
+			"total_tokens": usage.TotalTokens,
+			"estimated": true,
+			"estimation_method": "text_only_heuristic",
+		},
 	})
 }
 func writeNotebookError(w http.ResponseWriter, err error) {

@@ -274,6 +274,19 @@ func SetAccessLogGenerationInput(ctx context.Context, request aistudio.GenerateR
 	metadata.mu.Unlock()
 }
 
+// SetAccessLogTextInput records the number of messages and text characters
+// for a provider that does not use the native aistudio.GenerateRequest type.
+// The request is still registered as generation in the normal request log.
+func SetAccessLogTextInput(ctx context.Context, count, characters int) {
+	if metadata, ok := ctx.Value(accessLogContextKey{}).(*accessLogMetadata); ok {
+		metadata.mu.Lock()
+		metadata.generation = true
+		metadata.inputMessages = count
+		metadata.inputTextChars = characters
+		metadata.mu.Unlock()
+	}
+}
+
 // SetAccessLogUpstreamBytes 写入上游响应体字节数
 func SetAccessLogUpstreamBytes(ctx context.Context, bytes int64) {
 	if metadata, ok := ctx.Value(accessLogContextKey{}).(*accessLogMetadata); ok {

@@ -370,17 +370,23 @@ const bodyParts = computed(() =>
       <LogLine :entry="trimmed(currentStep)" part="inline" />
     </p>
     <div v-else-if="request.usage" class="log-op-row request-metrics">
-      <span class="log-field"
+      <span v-if="!request.usage.estimated" class="log-field"
         ><span class="log-field-key">{{ t('logs.reasoning') }}</span
         >&nbsp;{{ number(request.usage.reasoning_tokens) }}</span
       >
       <span class="log-field"
         ><span class="log-field-key">{{ t('logs.reply') }}</span
-        >&nbsp;{{ number(request.usage.reply_tokens) }}</span
+        >&nbsp;{{ request.usage.estimated ? '≈ ' : '' }}{{ number(request.usage.reply_tokens) }}</span
       >
       <span class="log-field"
         ><span class="log-field-key">{{ t('logs.outputTotal') }}</span
-        >&nbsp;{{ number(request.usage.output_tokens) }} tokens</span
+        >&nbsp;{{ request.usage.estimated ? '≈ ' : '' }}{{ number(request.usage.output_tokens) }} tokens</span
+      >
+      <span
+        v-if="request.usage.estimated"
+        class="log-field text-yellow-300"
+        :title="t('logs.estimatedTokensHelp')"
+      >{{ t('logs.estimatedTokens') }}</span
       >
       <span v-if="request.usage.average_tokens_per_second !== undefined" class="log-field"
         ><span class="log-field-key">{{ t('logs.averageSpeed') }}</span
@@ -410,13 +416,13 @@ const bodyParts = computed(() =>
           </template>
           <template v-if="request.usage">
             <dt>{{ t('logs.inputTokens') }}</dt>
-            <dd>{{ number(request.usage.input_tokens) }} tokens</dd>
+            <dd>{{ request.usage.estimated ? '≈ ' : '' }}{{ number(request.usage.input_tokens) }} tokens</dd>
             <template v-if="request.usage.cached_tokens">
               <dt>{{ t('logs.cachedTokens') }}</dt>
               <dd>{{ number(request.usage.cached_tokens) }} tokens</dd>
             </template>
             <dt>{{ t('logs.totalTokens') }}</dt>
-            <dd>{{ number(request.usage.total_tokens) }} tokens</dd>
+            <dd>{{ request.usage.estimated ? '≈ ' : '' }}{{ number(request.usage.total_tokens) }} tokens</dd>
           </template>
           <template v-if="request.input_messages">
             <dt>{{ t('logs.inputMessages') }}</dt>

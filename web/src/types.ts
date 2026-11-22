@@ -306,6 +306,7 @@ interface RequestLog {
     output_tokens: number
     total_tokens: number
     average_tokens_per_second?: number
+    estimated?: boolean
   }
 }
 
@@ -393,7 +394,7 @@ export interface ThinkingBudget {
   can_disable?: boolean
 }
 
-export type UpstreamChannel = 'playground' | 'build' | 'assistant'
+export type UpstreamChannel = 'playground' | 'build' | 'assistant' | 'notebook'
 
 export interface Cooldown {
   account_id: string

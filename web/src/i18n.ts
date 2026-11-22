@@ -85,6 +85,7 @@ export function loadInitialLocale(): Promise<void> {
 // channelLabelKey 返回上游通道的翻译键
 export function channelLabelKey(channel: UpstreamChannel): TranslationKey {
   if (channel === 'assistant') return 'channel.assistant'
+  if (channel === 'notebook') return 'channel.notebook'
   return channel === 'build' ? 'channel.build' : 'channel.playground'
 }
 
