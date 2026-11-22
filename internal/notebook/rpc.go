@@ -36,12 +36,18 @@ func (p *Provider) execute(ctx context.Context, a *account, rpcID string, params
 	if page, direct := a.browser.shared.(HTTPPage); direct {
 		var err error
 		result, err = a.browser.executeHTTP(ctx, page, rpcID, params, sourcePath, path)
-		if err != nil { return result, err }
+		if err != nil {
+			return result, err
+		}
 	} else {
 		arg, _ := json.Marshal(map[string]any{"rpcid": rpcID, "params": params, "sourcePath": sourcePath, "path": path})
 		raw, err := a.browser.evaluate(ctx, requestJS+"("+string(arg)+")")
-		if err != nil { return browserResponse{}, err }
-		if err = json.Unmarshal(raw, &result); err != nil { return result, err }
+		if err != nil {
+			return browserResponse{}, err
+		}
+		if err = json.Unmarshal(raw, &result); err != nil {
+			return result, err
+		}
 	}
 	if result.SignedOut {
 		return result, &APIError{Status: 401, Code: "auth_required", Message: "Notebook sign-in expired; reconnect account"}

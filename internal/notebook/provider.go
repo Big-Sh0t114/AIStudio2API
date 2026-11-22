@@ -84,7 +84,7 @@ type account struct {
 	// sourceMetadata is a short-lived catalog, like Playground's model catalog.
 	// Guarded by mu; it never stores conversation or user-specific history.
 	sourceMetadata map[string]notebookSourceSnapshot
-	httpBootstrap *notebookBootstrap
+	httpBootstrap  *notebookBootstrap
 }
 type Provider struct {
 	mu       sync.RWMutex

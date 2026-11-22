@@ -20,10 +20,10 @@ import (
 )
 
 type browser struct {
-	profile string
-	port    int
-	cmd     *exec.Cmd
-	shared  SharedPage
+	profile       string
+	port          int
+	cmd           *exec.Cmd
+	shared        SharedPage
 	httpBootstrap *notebookBootstrap
 }
 
@@ -259,7 +259,9 @@ func (b *browser) evaluate(ctx context.Context, expression string) (json.RawMess
 }
 func (b *browser) navigate(ctx context.Context, target string) error {
 	if _, direct := b.shared.(HTTPPage); direct {
-		if target != notebookOrigin+"/" { return errors.New("Notebook HTTP navigation is restricted") }
+		if target != notebookOrigin+"/" {
+			return errors.New("Notebook HTTP navigation is restricted")
+		}
 		b.httpBootstrap = nil
 		return nil
 	}

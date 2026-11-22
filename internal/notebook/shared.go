@@ -14,6 +14,7 @@ type SharedPage interface {
 	Navigate(context.Context, string) error
 	Close() error
 }
+
 // HTTPPage is an optional direct transport for a linked SpiderMonkey worker.
 // Camoufox and standalone Chrome continue to use browser-side JavaScript.
 // It reuses the source account's HTTP client, proxy and authenticated cookies.
@@ -22,7 +23,7 @@ type HTTPPage interface {
 }
 type HTTPResponse struct {
 	Status int
-	Body []byte
+	Body   []byte
 }
 type SourceAccount struct {
 	ID    string `json:"id"`
