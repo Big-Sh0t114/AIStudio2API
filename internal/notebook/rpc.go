@@ -95,17 +95,37 @@ func parseUsage(raw any)*Usage{
  return u
 }
 func floatValue(v any)float64{f,_:=v.(float64);return f}
-func(p *Provider)chatLocked(ctx context.Context,a *account,id,question string,history []any)(Answer,error){
+// notebookSourceMetadataTTL avoids fetching the same ready-source catalog on
+// every frequent request, while limiting stale content after source changes.
+const notebookSourceMetadataTTL=60*time.Second
+
+func (p *Provider) readySources(ctx context.Context,a *account,id string)([]any,map[string]string,error){
+ if snapshot,ok:=a.sourceMetadata[id];ok&&time.Now().Before(snapshot.expires){
+  return snapshot.ids,snapshot.titles,nil
+ }
  sourcePath:="/notebook/"+id
- raw,err:=p.rpc(ctx,a,"rLM1Ne",[]any{id,nil,opts,nil,0},sourcePath);if err!=nil{return Answer{},err}
- row:=at(raw,0);if row==nil{return Answer{},&APIError{Status:404,Code:"not_found",Message:"Notebook not found"}}
- var ids []any;titles:=map[string]string{}
+ raw,err:=p.rpc(ctx,a,"rLM1Ne",[]any{id,nil,opts,nil,0},sourcePath)
+ if err!=nil{return nil,nil,err}
+ row:=at(raw,0)
+ if row==nil{return nil,nil,&APIError{Status:404,Code:"not_found",Message:"Notebook not found"}}
+ var ids []any
+ titles:=map[string]string{}
  for _,s:=range array(at(row,1)){
   if number(at(s,3,1))!=2{continue}
-  sid:=str(at(s,0,0));if sid==""{continue}
-  ids=append(ids,[]any{[]any{sid}});titles[sid]=str(at(s,1))
+  sid:=str(at(s,0,0))
+  if sid==""{continue}
+  ids=append(ids,[]any{[]any{sid}})
+  titles[sid]=str(at(s,1))
  }
- if len(ids)==0{return Answer{},&APIError{Status:400,Code:"sources_not_ready",Message:"This Notebook has no ready sources"}}
+ if len(ids)==0{return nil,nil,&APIError{Status:400,Code:"sources_not_ready",Message:"This Notebook has no ready sources"}}
+ if a.sourceMetadata==nil{a.sourceMetadata=make(map[string]notebookSourceSnapshot)}
+ a.sourceMetadata[id]=notebookSourceSnapshot{ids:ids,titles:titles,expires:time.Now().Add(notebookSourceMetadataTTL)}
+ return ids,titles,nil
+}
+func(p *Provider)chatLocked(ctx context.Context,a *account,id,question string,history []any)(Answer,error){
+ sourcePath:="/notebook/"+id
+ ids,titles,err:=p.readySources(ctx,a,id)
+ if err!=nil{return Answer{},err}
  params:=[]any{ids,question,history,[]any{2,nil,[]any{1},[]any{1}},nil,nil,nil,id,1}
  r,err:=p.execute(ctx,a,"",params,sourcePath,chatPath);if err!=nil{return Answer{},err}
  var chosen []any;var rejected any

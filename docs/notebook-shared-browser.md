@@ -29,8 +29,10 @@ An OpenAI Chat Completion always constructs its context from that request's
 - No remote Notebook conversation ID is intentionally persisted or reused.
 - Requests for different Notebook IDs share the source account's browser but
   do not inherit each other's client-supplied messages.
-- The Notebook `rLM1Ne` source metadata RPC currently runs per request; this
-  change reduces page initialization costs but does not cache source metadata.
+- Ready-source IDs and source titles are cached in memory for up to 60 seconds
+  per Notebook ID, like a short-lived Playground catalog. Refreshing the
+  Notebook account or an upstream request error invalidates this cache.
+  Individual prompts and chat history are never stored in the source cache.
 
 ## Requirements and limitations
 
