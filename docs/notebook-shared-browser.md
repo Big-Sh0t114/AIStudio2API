@@ -1,48 +1,58 @@
-# Notebook requests with Playground-style warm Camoufox workers
+# Shared Playground/Notebook page lifecycle (experimental)
 
-Notebook shares an existing AIStudio2API Playground account's Camoufox worker
-and follows the same **warm-worker, independent-request** principle.
-An OpenAI Chat Completion always constructs its context from that request's
-`messages`, not from the browser's previous conversation.
+The native Go integration uses **one Camoufox process per Playground account**
+for both AI Studio and Notebook. Notebook pages are background tabs of that
+process. The protocol adapters remain separate: WAA for Playground and
+NotebookLM's internal RPC for Notebook.
 
-## Page lifecycle
+## Unified page management
 
-- First Notebook operation: reuse an existing Playground Camoufox worker, or
-  start one with the normal Playground worker manager. Open the Notebook page in
-  a **background tab**, without navigating the AI Studio chat tab.
-- Next operation within 120 seconds: reuse the same Notebook tab. A cheap
-  same-origin check detects stale/redirected tabs and recreates them if needed.
-- After each operation: release the Notebook request lease immediately,
-  including the worker's lifecycle lock. **Do not lock the worker during idle.**
-- After 120 seconds without a Notebook operation: close the idle tab.
-- When a Playground worker shuts down, retires, or is replaced: invalidate its
-  cached Notebook tab. A new worker starts with an empty Notebook tab cache.
-- One idle Notebook tab maximum per Playground worker. Operations borrowing
-  the same worker currently serialize at the account worker lifecycle lock.
-- Dedicated Chrome Notebook accounts remain available as a legacy option.
+`internal/pagepool` provides origin-neutral page allocation primitives:
 
-## Request isolation
+- **PickOldestFree** is used by the existing Playground page selector
+  (`aistudio/page_tabs.go`) and the generic page pool.
+- **NeedsSpare** preserves Playground's established prewarming threshold for
+  concurrent page requests.
+- **Pool + Lease** control request-scoped checkout, idle caching, expiration,
+  shutdown invalidation, and context cancellation. Notebook uses this shared
+  implementation instead of a separate `notebookTabCache`.
+- Playground continues to integrate its specialized `AccountLease`,
+  WAA `workerRuntime`, proof handling and page replacement logic; these
+  cannot be treated as Notebook pages without changing the upstream protocol.
+- Both services use the same `AccountPool` activity accounting for Worker
+  eviction. Notebook operations increment the shared browser operation count
+  without affecting AI Studio model quota or protected requests.
 
-- Each OpenAI Chat Completions request transmits only its own `messages` and
-  creates its own upstream generate request. The browser tab is a transport
-  container, not a shared chat history.
-- No remote Notebook conversation ID is intentionally persisted or reused.
-- Requests for different Notebook IDs share the source account's browser but
-  do not inherit each other's client-supplied messages.
-- Ready-source IDs and source titles are cached in memory for up to 60 seconds
-  per Notebook ID, like a short-lived Playground catalog. Refreshing the
-  Notebook account or an upstream request error invalidates this cache.
-  Individual prompts and chat history are never stored in the source cache.
+## Notebook lifecycle
 
-## Requirements and limitations
+1. First request for a linked account borrows the existing Playground Worker.
+2. The shared page pool creates a background Notebook tab on demand.
+3. Subsequent requests reuse a checked-out Notebook tab if its origin is valid.
+4. At the end of the request, the page lease is released immediately.
+5. One Notebook tab per worker remains idle for up to **120 seconds**.
+6. On timeout, invalid origin, Worker replacement, or service shutdown, the
+   page is closed and cannot be reused.
+7. No Worker lifecycle or account startup lock is held while that tab is idle.
 
-1. Start Playground service and select an existing enabled Playground account
-   in the Notebook account selector.
-2. Shared mode requires a Camoufox worker, not SpiderMonkey.
-3. Google might ask for Notebook authentication even when Playground is signed
-   in; there is no silent fallback to another Chrome process.
-4. Notebook's unofficial private RPC is subject to upstream changes.
-5. Latency and RAM savings are expected but **not benchmarked**. The tab can
-   consume memory for up to 120 seconds after its last operation.
-6. Native Notebook streaming and a multi-tab concurrency pool are not yet
-   implemented. Same-account requests remain serialized.
+The existing standalone Chrome Notebook mode remains available, but **no
+silent Chrome fallback** is performed for linked Camoufox accounts.
+
+## Conversations and metadata
+
+- Each Chat Completions request sends only its own OpenAI `messages`.
+- No Notebook conversation ID or server-side chat history is deliberately
+  shared across clients by AIStudio2API.
+- Notebook ready-source IDs and titles are cached for **60 seconds** per
+  Notebook ID, with invalidation on refresh and upstream request errors.
+- The source catalog does not include prompts, chat history, or answers.
+- Notebook continues to serialize requests for the same Notebook account.
+
+## Limitations
+
+- Page leasing and selection are now shared, but Playground's WAA-specific
+  runtime implementation is intentionally retained to avoid regressions.
+- Notebook native streaming and full multi-page concurrency are not included.
+- The Google Notebook private RPC may change; real Google sign-in and actual
+  latency/memory improvements still need end-to-end validation on Windows.
+- Worker pool capacity and separate service quotas remain controlled by
+  their existing managers.
