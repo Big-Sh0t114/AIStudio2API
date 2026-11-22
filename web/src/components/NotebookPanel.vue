@@ -199,8 +199,8 @@ onActivated(refresh)
           不会自动删除；请确认正在使用的 Notebook 模型 ID 后手动清理。
         </p>
         <p v-else-if="otherPlaygroundSameEmail(a)" class="mt-2 text-xs text-yellow-300">
-          另有 {{ otherPlaygroundSameEmail(a) }} 条记录使用相同 Google 邮箱，但关联不同 Playground 凭证。
-          其 Google 额度并不独立。
+          另有 {{ otherPlaygroundSameEmail(a) }} 条记录使用相同 Google 邮箱，但关联不同 Playground
+          凭证。 其 Google 额度并不独立。
         </p>
         <p
           v-if="a.cooldown_until && new Date(a.cooldown_until) > new Date()"

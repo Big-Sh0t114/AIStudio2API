@@ -44,6 +44,7 @@ func (p *Provider) Sources(ctx context.Context) ([]SourceAccount, error) {
 	}
 	return p.shared.Sources(ctx)
 }
+
 // CreateWithSource binds a Playground account idempotently. It remains a
 // two-return wrapper for existing callers; the HTTP handler uses the variant
 // that also reports whether a record was actually created.
