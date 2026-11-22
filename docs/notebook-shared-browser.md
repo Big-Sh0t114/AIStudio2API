@@ -54,13 +54,13 @@ silent Chrome fallback** is performed for linked accounts of either backend.
 - Notebook ready-source IDs and titles are cached for **60 seconds** per
   Notebook ID, with invalidation on refresh and upstream request errors.
 - The source catalog does not include prompts, chat history, or answers.
-- Notebook continues to serialize requests for the same Notebook account.
+- Notebook linked to Playground supports two concurrent calls per Google source, even across independent Notebook documents. Each request has an isolated borrowed page or SpiderMonkey HTTP adapter.
 
 ## Limitations
 
 - Page leasing and selection are now shared, but Playground's WAA-specific
   runtime implementation is intentionally retained to avoid regressions.
-- Notebook native streaming and full multi-page concurrency are not included.
+- Notebook native streaming is not included. Linked accounts now allow up to two simultaneous page/HTTP requests; independent standalone Chrome accounts remain serialized.
 - The Google Notebook private RPC may change; real Google sign-in and actual
   latency/memory improvements still need end-to-end validation on Windows.
 - Worker pool capacity and separate service quotas remain controlled by
@@ -104,3 +104,35 @@ silent Chrome fallback** is performed for linked accounts of either backend.
   actual Google identity even when local records differ.
 - Independent Chrome Notebook accounts are still created separately and are
   not deduplicated by email.
+
+## Bounded Notebook concurrency
+
+Linked Playground accounts use an independent, source-keyed Notebook gate:
+
+- **2 active Notebook requests** per `source_account_id`.
+- **10 queued requests** per source at most; the 11th waiting request receives
+  `429 notebook_queue_full` instead of occupying unlimited goroutines.
+- Queue wait is bounded to **30 seconds**; requests exceeding it return
+  `504 notebook_queue_timeout`. An HTTP client cancel stops waiting.
+- Google HTTP/RPC 429 places all Notebook account aliases mapped to the same
+  Playground source in a **shared cooldown**, preserving the existing 10-minute
+  fallback when upstream returns no reset time.
+- Each concurrent Notebook request has its own temporary `browser` wrapper,
+  source metadata map and web request; no chat history or live browser tab is
+  shared between requests.
+- Account status, cooldown and request counters use short mutex sections
+  instead of locking through the entire generation.
+- Camoufox provisions up to **2 Notebook background tabs**, each idle for
+  120 seconds before closing. SpiderMonkey shares the original Go HTTP
+  client, with request-local token/bootstrap state and no browser tabs.
+- Playground Worker lifecycle transitions continue to take exclusive
+  `startupMu.Lock`; Notebook requests borrow a shared
+  `startupMu.RLock` until their page lease is returned. This prevents
+  shutdown/restart from replacing the Worker while either Notebook call runs.
+- Playground request slots and AI Studio quota routing remain independent.
+- Standalone Chrome Notebook sessions remain **single-flight**, since their
+  CDP page must not be used simultaneously by two unrelated requests.
+
+The scheduler does **not** claim Google NotebookLM supports two simultaneous
+generations for every account. The upstream can still serialize, return 429
+or demand separate authentication. Validate with real multi-request traffic.

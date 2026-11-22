@@ -86,6 +86,9 @@ jobs:
       - name: Run Unit Tests
         if: matrix.check == 'test'
         run: go test -mod=readonly -trimpath -vet=off ./cmd/... ./internal/...
+      - name: Notebook Concurrency Race Tests
+        if: matrix.check == 'test'
+        run: go test -race -count=1 -mod=readonly -trimpath ./internal/notebook ./internal/pagepool
       - name: Check Minimum Go Version
         if: matrix.check == 'vet'
         run: |
