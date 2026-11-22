@@ -52,6 +52,8 @@ async function copyRequestModelID(account: Account, notebook: Notebook) {
     let success = false
     try {
       success = document.execCommand('copy')
+    } catch {
+      success = false
     } finally {
       textarea.remove()
     }
