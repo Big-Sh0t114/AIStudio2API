@@ -271,7 +271,14 @@ func (p *Provider) readySources(ctx context.Context, a *account, id string) ([]a
 		return nil, nil, &APIError{Status: 404, Code: "not_found", Message: "Notebook not found"}
 	}
 	ids, titles, stats := notebookReadySources(row)
-	if len(ids) == 0 {
+	// Google AI Pro / Ultra can chat in an entirely empty notebook. The
+	// upstream GenerateFreeFormStreamed endpoint accepts a source-ID array,
+	// so preserve the distinction between an empty array [] and JSON null.
+	// Do NOT treat nonempty notebooks with only processing/failed sources as
+	// source-free: they must continue to report sources_not_ready.
+	if stats.total == 0 {
+		ids = []any{}
+	} else if len(ids) == 0 {
 		return nil, nil, &APIError{
 			Status: 400,
 			Code:   "sources_not_ready",
@@ -293,6 +300,14 @@ func (p *Provider) chatLocked(ctx context.Context, a *account, id, question stri
 	if err != nil {
 		return Answer{}, err
 	}
+	// Request source-free chat using the same streaming transport as a
+	// grounded chat; Pro/Ultra access is enforced by Google upstream. If
+	// Google rejects this path for the account, make that explicit instead
+	// of fabricating an answer or switching to Playground's quota.
+	if ids == nil {
+		ids = []any{}
+	}
+	sourceFree := len(ids) == 0
 	params := []any{ids, question, history, []any{2, nil, []any{1}, []any{1}}, nil, nil, nil, id, 1}
 	r, err := p.execute(ctx, a, "", params, sourcePath, chatPath)
 	if err != nil {
@@ -324,7 +339,14 @@ func (p *Provider) chatLocked(ctx context.Context, a *account, id, question stri
 	}
 	if chosen == nil {
 		if rejected != nil {
-			return Answer{}, parseErr(rejected, "chat")
+			err := parseErr(rejected, "chat")
+			if sourceFree && err.Status == 400 && err.Code == "invalid_request" {
+				return Answer{}, &APIError{
+					Status: 502, Code: "source_free_chat_unavailable",
+					Message: "NotebookLM rejected an empty-source chat request. Google AI Pro/Ultra agent chat may require a different private protocol for this account; no Playground fallback was used.",
+				}
+			}
+			return Answer{}, err
 		}
 		return Answer{}, &APIError{Status: 502, Code: "empty_response", Message: "Notebook returned no answer"}
 	}
