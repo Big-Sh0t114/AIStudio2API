@@ -301,6 +301,9 @@ export const messages: Record<TranslationKey, string> = {
   'logs.endpoint': '端點',
   'logs.inputTokens': '輸入 Token',
   'logs.cachedTokens': '快取命中',
+  'logs.estimatedTokens': '估算',
+  'logs.estimatedTokensHelp':
+    '依請求與回覆文字粗略估算，不包含 Notebook 資料、內部檢索與推理；並非 Google 計費用量。',
   'logs.totalTokens': 'Token 總計',
   'logs.inputMessages': '輸入訊息',
   'logs.proofLock': '等待頁面',
@@ -565,6 +568,7 @@ export const messages: Record<TranslationKey, string> = {
   'settings.mediaBaseURL': '媒體連結位址',
   'settings.mediaBaseURLHelp': '媒體連結使用的服務位址，留空時使用每個請求存取的位址。',
   'settings.modelChannelsHelp': '限定模型只走一個通道，也可在模型詳情中選擇',
+  'channel.notebook': 'NotebookLM',
   'channel.playground': 'Playground',
   'channel.build': 'Build',
   'channel.assistant': 'Build 對話',

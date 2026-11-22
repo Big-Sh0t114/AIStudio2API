@@ -322,6 +322,9 @@ export const messages: Record<TranslationKey, string> = {
   'logs.endpoint': 'Point de terminaison',
   'logs.inputTokens': 'Jetons en entrée',
   'logs.cachedTokens': 'Jetons en cache',
+  'logs.estimatedTokens': 'Estimation',
+  'logs.estimatedTokensHelp':
+    "Estimation basée uniquement sur les textes reçus et envoyés, sans sources Notebook ni raisonnement interne ; ce n'est pas l'usage facturé par Google.",
   'logs.totalTokens': 'Total des jetons',
   'logs.inputMessages': 'Messages en entrée',
   'logs.proofLock': 'Attente de la page',
@@ -592,6 +595,7 @@ export const messages: Record<TranslationKey, string> = {
   'settings.mediaBaseURLHelp':
     'Adresse du service utilisée dans les liens média. Vide : adresse de chaque requête.',
   'settings.modelChannelsHelp': 'Limiter un modèle à un canal ; aussi dans les détails du modèle',
+  'channel.notebook': 'NotebookLM',
   'channel.playground': 'Playground',
   'channel.build': 'Build',
   'channel.assistant': 'Chat Build',

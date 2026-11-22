@@ -136,6 +136,7 @@ type RequestLogProofPhases struct {
 
 // RequestLogUsage 区分输入、缓存命中、思考、回复与首字之后的输出速率
 type RequestLogUsage struct {
+	Estimated              bool    `json:"estimated,omitempty"`
 	InputTokens            int64   `json:"input_tokens"`
 	CachedTokens           int64   `json:"cached_tokens"`
 	ReasoningTokens        int64   `json:"reasoning_tokens"`

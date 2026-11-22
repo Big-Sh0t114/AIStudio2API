@@ -315,6 +315,9 @@ export const messages: Record<TranslationKey, string> = {
   'logs.endpoint': 'Endpoint',
   'logs.inputTokens': 'Input tokens',
   'logs.cachedTokens': 'Cached tokens',
+  'logs.estimatedTokens': 'Estimate',
+  'logs.estimatedTokensHelp':
+    "Approximation from request and reply text only. Excludes Notebook sources, retrieval, and internal reasoning; not Google's billed usage.",
   'logs.totalTokens': 'Total tokens',
   'logs.inputMessages': 'Input messages',
   'logs.proofLock': 'Waiting for page',
@@ -584,6 +587,7 @@ export const messages: Record<TranslationKey, string> = {
   'settings.mediaBaseURLHelp':
     'Service address used in media links. Empty uses the address of each request.',
   'settings.modelChannelsHelp': 'Limit a model to one channel; also selectable in model details',
+  'channel.notebook': 'NotebookLM',
   'channel.playground': 'Playground',
   'channel.build': 'Build',
   'channel.assistant': 'Build chat',

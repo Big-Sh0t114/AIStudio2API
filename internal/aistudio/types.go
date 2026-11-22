@@ -604,6 +604,9 @@ type Usage struct {
 	ToolTokens          int64 `json:"tool_tokens,omitempty"`
 	TotalTokens         int64 `json:"total_tokens"`
 	OutputTokensMissing bool  `json:"-"`
+	// Estimated indicates local text-only heuristics rather than provider usage.
+	// In particular, NotebookLM does not report retrieved-source or reasoning tokens.
+	Estimated bool `json:"-"`
 	// Details 是上游按模态细分的用量与服务等级
 	Details *UsageDetails `json:"-"`
 }
