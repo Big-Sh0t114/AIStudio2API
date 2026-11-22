@@ -274,7 +274,8 @@ onActivated(refresh)
                   <code
                     class="min-w-0 flex-1 select-all break-all font-mono text-xs text-blue-300"
                     :title="requestModelID(a, nb)"
-                  >{{ requestModelID(a, nb) }}</code>
+                    >{{ requestModelID(a, nb) }}</code
+                  >
                   <button
                     type="button"
                     class="shrink-0 rounded border border-line px-2 py-1 text-xs text-gray-300"
