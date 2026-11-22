@@ -88,6 +88,7 @@ type account struct {
 }
 type Provider struct {
 	mu       sync.RWMutex
+	saveMu   sync.Mutex // serializes writes to accounts.json.tmp
 	root     string
 	accounts map[string]*account
 	shared   SharedSessions
@@ -167,6 +168,8 @@ func (p *Provider) Accounts() []AccountStatus {
 	return result
 }
 func (p *Provider) save() error {
+	p.saveMu.Lock()
+	defer p.saveMu.Unlock()
 	list := p.Accounts()
 	payload, err := json.MarshalIndent(persistent{Accounts: list}, "", "  ")
 	if err != nil {
@@ -248,7 +251,12 @@ func (p *Provider) Login(ctx context.Context, id string) error {
 		}
 		p.closeSharedPage(a)
 		if err != nil {
-			a.status.State = "unavailable"
+			var api *APIError
+			if errors.As(err, &api) && api.Status == 401 {
+				a.status.State = "auth_required"
+			} else {
+				a.status.State = "unavailable"
+			}
 			a.status.Error = err.Error()
 		}
 		return err
