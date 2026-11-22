@@ -1,0 +1,39 @@
+name: Format Notebook log metrics (temporary)
+
+on:
+  push:
+    branches: [fix/notebook-request-model-and-token-metrics]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.18.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Format Notebook frontend
+        working-directory: web
+        run: |
+          npm ci
+          npx vp fmt src/components/RequestLogCard.vue src/types.ts src/i18n.ts src/locales/zh-CN.ts src/locales/zh-TW.ts src/locales/en.ts src/locales/ja.ts src/locales/ko.ts src/locales/fr.ts src/locales/de.ts
+      - name: Format Go
+        run: |
+          gofmt -w internal/aistudio/types.go internal/api/admin.go internal/api/middleware.go internal/api/notebook_http.go internal/api/notebook_metrics_test.go internal/app/request_logging.go
+      - name: Commit formatted files
+        run: |
+          git diff --check
+          if git diff --quiet; then
+            echo "Already formatted"
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add internal/aistudio/types.go internal/api/admin.go internal/api/middleware.go internal/api/notebook_http.go internal/api/notebook_metrics_test.go internal/app/request_logging.go web/src/components/RequestLogCard.vue web/src/types.ts web/src/i18n.ts web/src/locales
+          git commit -m "style(notebook): format request metrics and usage labels"
+          git push origin HEAD:fix/notebook-request-model-and-token-metrics
