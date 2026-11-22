@@ -22,7 +22,7 @@ type Window struct { Window string `json:"window"`; UsedPercent float64 `json:"u
 type Usage struct {MeteringEnabled bool `json:"metering_enabled"`; Windows []Window `json:"windows"`}
 type Notebook struct {ID string `json:"id"`; Title string `json:"title"`; SourceCount int `json:"source_count"`}
 type AccountStatus struct {
- ID string `json:"id"`; Label string `json:"label"`; Email string `json:"email,omitempty"`; State string `json:"state"`; Plan string `json:"plan,omitempty"`
+ ID string `json:"id"`; Label string `json:"label"`; SourceAccountID string `json:"source_account_id,omitempty"`; Email string `json:"email,omitempty"`; State string `json:"state"`; Plan string `json:"plan,omitempty"`
  CooldownUntil time.Time `json:"cooldown_until,omitzero"`; Error string `json:"error,omitempty"`; Notebooks []Notebook `json:"notebooks"`
  Usage *Usage `json:"usage,omitempty"`; RequestCount uint64 `json:"request_count"`; SuccessCount uint64 `json:"success_count"`; LastRequest time.Time `json:"last_request,omitzero"`
 }
@@ -32,7 +32,7 @@ type Citation struct {Number int `json:"number"`; SourceID string `json:"source_
 type Answer struct {Text string `json:"text"`; Citations []Citation `json:"citations"`}
 type persistent struct {Accounts []AccountStatus `json:"accounts"`}
 type account struct {mu sync.Mutex;status AccountStatus;browser *browser}
-type Provider struct {mu sync.RWMutex;root string;accounts map[string]*account}
+type Provider struct {mu sync.RWMutex;root string;accounts map[string]*account;shared SharedSessions}
 func New(root string)*Provider{
  p:=&Provider{root:root,accounts:make(map[string]*account)}
  _=os.MkdirAll(filepath.Join(root,"profiles"),0700)
@@ -84,6 +84,13 @@ func(p *Provider)Remove(id string)error{
 func(p *Provider)Login(ctx context.Context,id string)error{
  a,err:=p.get(id);if err!=nil{return err};a.mu.Lock();defer a.mu.Unlock()
  if a.browser!=nil{if err:=a.browser.close();err!=nil{return err};a.browser=nil}
+ if a.status.SourceAccountID!=""{
+  err=p.ensureBrowser(ctx,a)
+  if err==nil{err=p.refreshLocked(ctx,a)}
+  p.closeSharedPage(a)
+  if err!=nil{a.status.State="unavailable";a.status.Error=err.Error()}
+  return err
+ }
  a.browser=&browser{profile:filepath.Join(p.root,"profiles",id)}
  if err=a.browser.start(ctx,true);err!=nil{a.status.State="unavailable";a.status.Error=err.Error();return err}
  a.status.State="login_pending";a.status.Error="";return nil
@@ -91,6 +98,7 @@ func(p *Provider)Login(ctx context.Context,id string)error{
 func(p *Provider)Refresh(ctx context.Context,id string)(AccountStatus,error){
  a,err:=p.get(id);if err!=nil{return AccountStatus{},err}
  a.mu.Lock();err=p.ensureBrowser(ctx,a);if err==nil{err=p.refreshLocked(ctx,a)}
+ p.closeSharedPage(a)
  if err!=nil{a.status.Error=err.Error();var api *APIError;if errors.As(err,&api)&&api.Status==401{a.status.State="auth_required"}else if a.status.State!="cooldown"{a.status.State="unavailable"}}
  st:=a.status;a.mu.Unlock();if err==nil{_=p.save()};return st,err
 }
@@ -99,7 +107,11 @@ func(p *Provider)refreshLocked(ctx context.Context,a *account)error{
  if err!=nil{return err}
  var login struct{Email string `json:"email"`;SignedIn bool `json:"signedIn"`}
  if err=json.Unmarshal(info,&login);err!=nil{return err}
- if !login.SignedIn{return &APIError{Code:"auth_required",Message:"Finish Google sign-in in Chrome, then refresh",Status:401}}
+ if !login.SignedIn{
+  msg:="Finish Google sign-in in Chrome, then refresh"
+  if a.status.SourceAccountID!=""{msg="Notebook is not signed in with the linked Playground account; verify that account in Playground"}
+  return &APIError{Code:"auth_required",Message:msg,Status:401}
+ }
  a.status.Email=login.Email
  if raw,e:=p.rpc(ctx,a,"ZwVcOc",[]any{opts},"/");e==nil{
   tier:=number(at(at(raw,0,1),4))
@@ -113,6 +125,14 @@ func(p *Provider)refreshLocked(ctx context.Context,a *account)error{
  a.status.State="ready";a.status.Error="";return nil
 }
 func(p *Provider)ensureBrowser(ctx context.Context,a *account)error{
+ if a.status.SourceAccountID!=""{
+  if p.shared==nil{return &APIError{Status:503,Code:"shared_browser_unavailable",Message:"Playground browser sharing not configured"}}
+  p.closeSharedPage(a)
+  page,err:=p.shared.Open(ctx,a.status.SourceAccountID)
+  if err!=nil{return err}
+  a.browser=&browser{shared:page}
+  return nil
+ }
  if a.browser==nil{a.browser=&browser{profile:filepath.Join(p.root,"profiles",a.status.ID)}}
  return a.browser.start(ctx,false)
 }
@@ -159,6 +179,7 @@ func(p *Provider)Chat(ctx context.Context,model string,messages []Message)(Answe
  a.status.RequestCount++;a.status.LastRequest=time.Now()
  err=p.ensureBrowser(ctx,a);var ans Answer
  if err==nil{ans,err=p.chatLocked(ctx,a,notebookID,question,history)}
+ p.closeSharedPage(a)
  if err==nil{a.status.State="ready";a.status.Error="";a.status.SuccessCount++}else{
  a.status.Error=err.Error();var api *APIError
  if errors.As(err,&api){if api.Status==429{a.status.State="cooldown";a.status.CooldownUntil=api.RetryAt;if a.status.CooldownUntil.IsZero(){a.status.CooldownUntil=time.Now().Add(10*time.Minute)}};if api.Status==401{a.status.State="auth_required"}}

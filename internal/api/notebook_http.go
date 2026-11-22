@@ -100,9 +100,9 @@ func(s *server)handleNotebookAccounts(w http.ResponseWriter,r *http.Request){
  switch r.Method{
  case http.MethodGet:writeJSON(w,200,map[string]any{"accounts":s.config.Notebook.Accounts()})
  case http.MethodPost:
-  var input struct{Label string `json:"label"`}
+  var input struct{Label string `json:"label"`; SourceAccountID string `json:"source_account_id"`}
   if err:=json.NewDecoder(io.LimitReader(r.Body,32<<10)).Decode(&input);err!=nil&&err!=io.EOF{writeNotebookError(w,&notebook.APIError{Status:400,Code:"invalid_request",Message:err.Error()});return}
-  account,err:=s.config.Notebook.Create(input.Label);if err!=nil{writeNotebookError(w,err);return}
+  account,err:=s.config.Notebook.CreateWithSource(r.Context(),input.Label,input.SourceAccountID);if err!=nil{writeNotebookError(w,err);return}
   writeJSON(w,201,map[string]any{"account":account})
  }
 }
@@ -121,4 +121,11 @@ func(s *server)handleNotebookAccountAction(w http.ResponseWriter,r *http.Request
   writeJSON(w,200,map[string]any{"ok":true})
  default:writeOpenAIError(w,405,"invalid_method","Unsupported Notebook action")
  }
+}
+
+func(s *server)handleNotebookSources(w http.ResponseWriter,r *http.Request){
+ if s.config.Notebook==nil{writeOpenAIError(w,503,"not_configured","Notebook provider disabled");return}
+ sources,err:=s.config.Notebook.Sources(r.Context())
+ if err!=nil{writeNotebookError(w,err);return}
+ writeJSON(w,200,map[string]any{"sources":sources})
 }

@@ -18,7 +18,7 @@ import (
 
  "github.com/gorilla/websocket"
 )
-type browser struct {profile string;port int;cmd *exec.Cmd}
+type browser struct {profile string;port int;cmd *exec.Cmd;shared SharedPage}
 func chromePath()(string,error){
  for _,e:=range []string{"NOTEBOOK_CHROME_PATH","CHROME_PATH"}{if x:=os.Getenv(e);x!=""{if _,err:=os.Stat(x);err==nil{return x,nil}}}
  for _,n:=range []string{"google-chrome","google-chrome-stable","chromium","chromium-browser","chrome"}{if p,e:=exec.LookPath(n);e==nil{return p,nil}}
@@ -46,6 +46,7 @@ func (b *browser) resolveProfile() error {
  return nil
 }
 func(b *browser)start(ctx context.Context,show bool)error{
+ if b.shared!=nil{return nil}
  if err:=b.resolveProfile();err!=nil{return err}
  if b.ping(b.port){return nil}
  if port:=b.activePort();b.ping(port){b.port=port;return nil}
@@ -95,6 +96,7 @@ func localCDP(ws string)(bool,error){
  return u.Scheme=="ws"&&(h=="localhost"||ip!=nil&&ip.IsLoopback()),nil
 }
 func(b *browser)evaluate(ctx context.Context,expression string)(json.RawMessage,error){
+ if b.shared!=nil{return b.shared.Evaluate(ctx,expression)}
  endpoint,e:=b.page(ctx);if e!=nil{return nil,e}
  raw,e:=cdpCall(ctx,endpoint,"Runtime.evaluate",map[string]any{"expression":expression,"awaitPromise":true,"returnByValue":true});if e!=nil{return nil,e}
  var res struct {Result struct{Value json.RawMessage `json:"value"`;Description string `json:"description"`} `json:"result"`;ExceptionDetails json.RawMessage `json:"exceptionDetails"`}
@@ -104,9 +106,11 @@ func(b *browser)evaluate(ctx context.Context,expression string)(json.RawMessage,
  return res.Result.Value,nil
 }
 func(b *browser)navigate(ctx context.Context,target string)error{
+ if b.shared!=nil{return b.shared.Navigate(ctx,target)}
  endpoint,e:=b.page(ctx);if e!=nil{return e};_,e=cdpCall(ctx,endpoint,"Page.navigate",map[string]any{"url":target});return e
 }
 func(b *browser)close()error{
+ if b.shared!=nil{err:=b.shared.Close();b.shared=nil;return err}
  if b.port>0{
   c:=http.Client{Timeout:1500*time.Millisecond}
   resp,e:=c.Get(fmt.Sprintf("http://127.0.0.1:%d/json/version",b.port))

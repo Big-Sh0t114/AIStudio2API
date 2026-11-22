@@ -264,7 +264,7 @@ func runServer(ctx context.Context, cfg config.Config, manager *runtimeManager, 
 	}
 	manager.previewAddress = previewListener.Addr().String()
 	manager.settings.Store(requestSettingsOf(manager.currentConfig()))
-	notebookProvider := notebook.New(filepath.Join("runtime", "notebook"))
+	notebookProvider := notebook.NewWithShared(filepath.Join("runtime", "notebook"), &notebookSharedSessions{manager: manager})
 	defer notebookProvider.Close()
 	apiHandler := api.NewHandler(manager, api.Config{
 		APIKey: cfg.ProxyAPIKey, Admin: manager, Ledger: manager.ledger, Prompts: manager.prompts, Updates: updater,

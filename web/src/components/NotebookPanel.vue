@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { onActivated, onMounted, ref } from 'vue'
 type Notebook = { id: string; title: string; source_count: number }
+type SourceAccount = { id: string; label: string; state: string }
 type Quota = { window: string; used_percent: number; remaining_percent: number; resets_at?: string }
 type Account = {
   id: string
   label: string
+  source_account_id?: string
   email?: string
   state: string
   plan?: string
@@ -17,6 +19,9 @@ type Account = {
 }
 const props = defineProps<{ mode: 'accounts' | 'usage' }>()
 const accounts = ref<Account[]>([])
+const sources = ref<SourceAccount[]>([])
+const sourceAccountID = ref('')
+const sourceSelectionInitialized = ref(false)
 const loading = ref(false)
 const pending = ref(false)
 const label = ref('')
@@ -38,7 +43,16 @@ async function refresh() {
   loading.value = true
   error.value = ''
   try {
-    accounts.value = (await call<{ accounts: Account[] }>('/api/notebook/accounts')).accounts
+    const [foundAccounts, foundSources] = await Promise.all([
+      call<{ accounts: Account[] }>('/api/notebook/accounts'),
+      call<{ sources: SourceAccount[] }>('/api/notebook/sources'),
+    ])
+    accounts.value = foundAccounts.accounts
+    sources.value = foundSources.sources
+    if (!sourceSelectionInitialized.value) {
+      sourceAccountID.value = sources.value[0]?.id || ''
+      sourceSelectionInitialized.value = true
+    }
   } catch (e) {
     error.value = String(e)
   } finally {
@@ -52,10 +66,13 @@ async function add() {
   try {
     const x = await call<{ account: Account }>('/api/notebook/accounts', 'POST', {
       label: label.value.trim(),
+      source_account_id: sourceAccountID.value,
     })
     label.value = ''
     await call(`/api/notebook/accounts/${encodeURIComponent(x.account.id)}/login`, 'POST')
-    notice.value = '已在运行服务的设备上打开 Chrome，完成 Google 登录后刷新账号状态。'
+    notice.value = sourceAccountID.value
+      ? '已使用 Playground Camoufox 的独立标签页读取 Notebook，无需额外 Chrome。'
+      : '已打开 Chrome，完成 Google 登录后刷新账号状态。'
     await refresh()
   } catch (e) {
     error.value = String(e)
@@ -64,7 +81,7 @@ async function add() {
   }
 }
 async function action(a: Account, task: 'login' | 'refresh' | 'delete') {
-  if (task === 'delete' && !confirm(`删除 Notebook 账号 ${a.label} 和本地 Chrome 登录资料？`))
+  if (task === 'delete' && !confirm(`删除 Notebook 账号 ${a.label} 及对应登录资料？`))
     return
   pending.value = true
   error.value = ''
@@ -72,7 +89,10 @@ async function action(a: Account, task: 'login' | 'refresh' | 'delete') {
   try {
     const url = `/api/notebook/accounts/${encodeURIComponent(a.id)}`
     await call(url + (task === 'delete' ? '' : `/${task}`), task === 'delete' ? 'DELETE' : 'POST')
-    if (task === 'login') notice.value = 'Chrome 登录窗口已打开，完成登录后点击刷新状态。'
+    if (task === 'login')
+      notice.value = a.source_account_id
+        ? '已借用 Playground Camoufox 标签页刷新认证，不会启动 Chrome。'
+        : 'Chrome 登录窗口已打开，完成登录后点击刷新状态。'
     await refresh()
   } catch (e) {
     error.value = String(e)
@@ -93,7 +113,7 @@ onActivated(refresh)
         <p class="text-xs text-gray-400">
           {{
             props.mode === 'accounts'
-              ? '独立登录 · Notebook 模型 · 独立冷却'
+              ? '可复用 Playground 浏览器 · Notebook 模型 · 独立冷却'
               : 'Notebook 专用额度（不计入 AI Studio Token 数据）'
           }}
         </p>
@@ -107,13 +127,24 @@ onActivated(refresh)
         刷新列表
       </button>
     </div>
-    <div v-if="props.mode === 'accounts'" class="mb-3 flex gap-2">
+    <div v-if="props.mode === 'accounts'" class="mb-3 flex flex-wrap gap-2">
       <input
         v-model="label"
         class="min-w-0 flex-1 rounded border border-line bg-panel px-3 py-2 text-sm text-white"
         maxlength="120"
         placeholder="账号备注"
       />
+      <select
+        v-model="sourceAccountID"
+        class="min-w-48 rounded border border-line bg-panel px-3 py-2 text-sm text-white"
+        aria-label="Notebook 浏览器模式"
+        title="绑定现有 Playground Google 账号，免启动额外 Chrome"
+      >
+        <option value="">独立 Chrome（兼容模式）</option>
+        <option v-for="source in sources" :key="source.id" :value="source.id">
+          复用 {{ source.label }}（{{ source.state }}）
+        </option>
+      </select>
       <button
         type="button"
         class="rounded bg-blue-600 px-3 py-2 text-sm text-white"
@@ -132,6 +163,9 @@ onActivated(refresh)
           <div>
             <div class="text-sm font-medium text-white">{{ a.label }} · {{ a.plan }}</div>
             <div class="break-all text-xs text-gray-400">{{ a.email || a.id }}</div>
+            <div v-if="a.source_account_id" class="text-xs text-blue-400">
+              共享 Playground Camoufox · 按需关闭标签页
+            </div>
           </div>
           <span class="text-xs text-gray-400">{{ a.state }}</span>
         </div>
