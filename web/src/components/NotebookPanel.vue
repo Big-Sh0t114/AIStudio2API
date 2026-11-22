@@ -81,8 +81,7 @@ async function add() {
   }
 }
 async function action(a: Account, task: 'login' | 'refresh' | 'delete') {
-  if (task === 'delete' && !confirm(`删除 Notebook 账号 ${a.label} 及对应登录资料？`))
-    return
+  if (task === 'delete' && !confirm(`删除 Notebook 账号 ${a.label} 及对应登录资料？`)) return
   pending.value = true
   error.value = ''
   notice.value = ''

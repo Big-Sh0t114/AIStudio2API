@@ -278,8 +278,14 @@ func runServer(ctx context.Context, cfg config.Config, manager *runtimeManager, 
 			current := manager.currentConfig()
 			bound := apiKeyAccounts(current.ProxyAPIKey, current.APIKeyAccounts, current)
 			allowed, restricted := bound[key]
-			if !restricted { return true }
-			for _, account := range allowed { if strings.EqualFold(account, email) { return true } }
+			if !restricted {
+				return true
+			}
+			for _, account := range allowed {
+				if strings.EqualFold(account, email) {
+					return true
+				}
+			}
 			return false
 		},
 	})
