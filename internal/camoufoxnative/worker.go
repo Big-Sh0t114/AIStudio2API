@@ -86,6 +86,9 @@ type Worker struct {
 	idle *time.Timer
 	// settle 在 Worker 就绪 readyMinimizeDelay 后发出一次 memory-pressure
 	settle *time.Timer
+	// notebookCache retains one Notebook tab between requests without holding
+	// the account's worker lifecycle lock while idle.
+	notebookCache *notebookTabCache
 }
 
 // tabUse 是一个标签页中进行中的受保护请求数，retired 表示该标签页已被重新载入的页面替换
@@ -119,6 +122,11 @@ func Start(ctx context.Context, options Options) (*Worker, error) {
 	}
 	options.CacheDirectory = cacheDirectory
 	worker := &Worker{cacheLock: cacheLock, options: options, tabs: make(map[string]*tabUse), rhythm: account}
+	worker.notebookCache = newNotebookTabCache(notebookTabIdleTimeout, func(contextID string) {
+		if err := worker.closeTab(contextID); err != nil {
+			slog.Debug("释放 Notebook 后台标签页失败", "context", contextID, "error", err)
+		}
+	})
 	failed := true
 	defer func() {
 		if failed {
@@ -726,6 +734,10 @@ func WaitRetired() {
 
 // shutdown 把各标签页导航到空白页，等页面卸载时的上报发出后结束 BiDi session、关闭浏览器并释放账户缓存
 func (worker *Worker) shutdown() error {
+	// Invalidate idle Notebook tabs before terminating the shared BiDi session.
+	if worker.notebookCache != nil {
+		worker.notebookCache.Stop()
+	}
 	worker.mu.Lock()
 	client := worker.client
 	connection := worker.connection

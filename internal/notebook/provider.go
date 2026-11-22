@@ -70,10 +70,20 @@ type Answer struct {
 type persistent struct {
 	Accounts []AccountStatus `json:"accounts"`
 }
+
+// notebookSourceSnapshot contains only source IDs/titles; no chat history.
+type notebookSourceSnapshot struct {
+	ids     []any
+	titles  map[string]string
+	expires time.Time
+}
 type account struct {
 	mu      sync.Mutex
 	status  AccountStatus
 	browser *browser
+	// sourceMetadata is a short-lived catalog, like Playground's model catalog.
+	// Guarded by mu; it never stores conversation or user-specific history.
+	sourceMetadata map[string]notebookSourceSnapshot
 }
 type Provider struct {
 	mu       sync.RWMutex
@@ -222,6 +232,7 @@ func (p *Provider) Login(ctx context.Context, id string) error {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.sourceMetadata = nil
 	if a.browser != nil {
 		if err := a.browser.close(); err != nil {
 			return err
@@ -278,6 +289,8 @@ func (p *Provider) Refresh(ctx context.Context, id string) (AccountStatus, error
 	return st, err
 }
 func (p *Provider) refreshLocked(ctx context.Context, a *account) error {
+	// Refresh always invalidates the cached Notebook source catalog.
+	a.sourceMetadata = nil
 	info, err := a.browser.evaluate(ctx, `(() => {const w=window.WIZ_global_data||{};return {email:w.oPEP7c||'',signedIn:!!(w.SNlM0e&&w.oPEP7c),url:location.href}})()`)
 	if err != nil {
 		return err
@@ -437,6 +450,9 @@ func (p *Provider) Chat(ctx context.Context, model string, messages []Message) (
 	var ans Answer
 	if err == nil {
 		ans, err = p.chatLocked(ctx, a, notebookID, question, history)
+	}
+	if err != nil {
+		delete(a.sourceMetadata, notebookID)
 	}
 	p.closeSharedPage(a)
 	if err == nil {

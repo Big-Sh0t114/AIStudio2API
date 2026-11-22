@@ -163,7 +163,7 @@ onActivated(refresh)
             <div class="text-sm font-medium text-white">{{ a.label }} · {{ a.plan }}</div>
             <div class="break-all text-xs text-gray-400">{{ a.email || a.id }}</div>
             <div v-if="a.source_account_id" class="text-xs text-blue-400">
-              共享 Playground Camoufox · 按需关闭标签页
+              共享 Playground Camoufox · 标签页空闲 120 秒后回收
             </div>
           </div>
           <span class="text-xs text-gray-400">{{ a.state }}</span>
