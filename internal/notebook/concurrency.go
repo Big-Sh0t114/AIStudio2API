@@ -12,20 +12,28 @@ import (
 // Notebook document or local alias. This prevents duplicated account records
 // from multiplying the permitted concurrency against the same Google quota.
 const (
-	notebookConcurrentRequests = 2
-	notebookMaxQueuedRequests  = 10
-	notebookQueueWait          = 30 * time.Second
+	DefaultConcurrency      = 4
+	MinConcurrency          = 1
+	MaxConcurrency          = 16
+	notebookMaxQueuedRequests = 10
+	notebookQueueWait         = 30 * time.Second
 )
 
 type notebookGate struct {
 	mu       sync.Mutex
-	running  chan struct{}
+	active   int
+	limit    int
 	waiting  int
+	changed  chan struct{}
 	cooldown time.Time
 }
 
-func newNotebookGate() *notebookGate {
-	return &notebookGate{running: make(chan struct{}, notebookConcurrentRequests)}
+func newNotebookGate(limits ...int) *notebookGate {
+	limit := DefaultConcurrency
+	if len(limits) > 0 && limits[0] >= MinConcurrency && limits[0] <= MaxConcurrency {
+		limit = limits[0]
+	}
+	return &notebookGate{limit: limit, changed: make(chan struct{})}
 }
 
 func cooldownError(until time.Time) error {
@@ -39,17 +47,31 @@ func (g *notebookGate) cooldownUntil() time.Time {
 	return g.cooldown
 }
 
-func (g *notebookGate) markCooldown(until time.Time) {
+func (g *notebookGate) notifyLocked() {
+	close(g.changed)
+	g.changed = make(chan struct{})
+}
+
+func (g *notebookGate) setLimit(limit int) {
 	g.mu.Lock()
-	if until.After(g.cooldown) {
-		g.cooldown = until
+	if g.limit != limit {
+		g.limit = limit
+		g.notifyLocked()
 	}
 	g.mu.Unlock()
 }
 
-// acquire uses a context-aware queue rather than sync.Mutex.Lock, so
-// canceled HTTP requests don't wait for another Notebook generation to finish.
-// The queue is bounded and times out independently after 30 seconds.
+func (g *notebookGate) markCooldown(until time.Time) {
+	g.mu.Lock()
+	if until.After(g.cooldown) {
+		g.cooldown = until
+		g.notifyLocked()
+	}
+	g.mu.Unlock()
+}
+
+// acquire uses a context-aware, bounded queue. A lower configured limit
+// never cancels active generations; it takes effect as those calls finish.
 func (g *notebookGate) acquire(ctx context.Context) (func(), error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -60,17 +82,10 @@ func (g *notebookGate) acquire(ctx context.Context) (func(), error) {
 		g.mu.Unlock()
 		return nil, cooldownError(until)
 	}
-	if g.waiting == 0 {
-		select {
-		case g.running <- struct{}{}:
-			g.mu.Unlock()
-			if err := ctx.Err(); err != nil {
-				<-g.running
-				return nil, err
-			}
-			return g.release, nil
-		default:
-		}
+	if g.waiting == 0 && g.active < g.limit {
+		g.active++
+		g.mu.Unlock()
+		return g.release, nil
 	}
 	if g.waiting >= notebookMaxQueuedRequests {
 		g.mu.Unlock()
@@ -82,37 +97,49 @@ func (g *notebookGate) acquire(ctx context.Context) (func(), error) {
 
 	timer := time.NewTimer(notebookQueueWait)
 	defer timer.Stop()
-	select {
-	case g.running <- struct{}{}:
+	for {
 		g.mu.Lock()
-		g.waiting--
-		until := g.cooldown
-		g.mu.Unlock()
 		if err := ctx.Err(); err != nil {
-			<-g.running
+			g.waiting--
+			g.mu.Unlock()
 			return nil, err
 		}
-		if time.Now().Before(until) {
-			<-g.running
+		if time.Now().Before(g.cooldown) {
+			until := g.cooldown
+			g.waiting--
+			g.mu.Unlock()
 			return nil, cooldownError(until)
 		}
-		return g.release, nil
-	case <-ctx.Done():
-		g.mu.Lock()
-		g.waiting--
+		if g.active < g.limit {
+			g.active++
+			g.waiting--
+			g.mu.Unlock()
+			return g.release, nil
+		}
+		changed := g.changed
 		g.mu.Unlock()
-		return nil, ctx.Err()
-	case <-timer.C:
-		g.mu.Lock()
-		g.waiting--
-		g.mu.Unlock()
-		return nil, &APIError{Status: 504, Code: "notebook_queue_timeout",
-			Message: "Notebook request exceeded the 30-second queue wait limit"}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			g.mu.Lock()
+			g.waiting--
+			g.mu.Unlock()
+			return nil, ctx.Err()
+		case <-timer.C:
+			g.mu.Lock()
+			g.waiting--
+			g.mu.Unlock()
+			return nil, &APIError{Status: 504, Code: "notebook_queue_timeout",
+				Message: "Notebook request exceeded the 30-second queue wait limit"}
+		}
 	}
 }
 
 func (g *notebookGate) release() {
-	<-g.running
+	g.mu.Lock()
+	g.active--
+	g.notifyLocked()
+	g.mu.Unlock()
 }
 
 func (p *Provider) gateForSource(sourceID string) *notebookGate {
@@ -124,7 +151,7 @@ func (p *Provider) gateForSource(sourceID string) *notebookGate {
 	if gate := p.gates[sourceID]; gate != nil {
 		return gate
 	}
-	gate := newNotebookGate()
+	gate := newNotebookGate(p.concurrentLimit)
 	// Preserve any persisted 429 cooldowns from legacy Notebook bindings.
 	for _, a := range p.accounts {
 		a.mu.Lock()

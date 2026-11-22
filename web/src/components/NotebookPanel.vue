@@ -28,6 +28,28 @@ const label = ref('')
 const error = ref('')
 const notice = ref('')
 const copiedModelID = ref('')
+const concurrency = ref(4)
+const selectedConcurrency = ref(4)
+const concurrencySaving = ref(false)
+const concurrencyOptions = Array.from({ length: 16 }, (_, i) => i + 1)
+async function saveConcurrency() {
+  concurrencySaving.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const response = await call<{ concurrency: number }>('/api/notebook/settings', 'PUT', {
+      concurrency: selectedConcurrency.value,
+    })
+    concurrency.value = response.concurrency
+    selectedConcurrency.value = response.concurrency
+    notice.value = `Notebook 并发已设为 ${response.concurrency}，对每个 Playground 来源分别生效；进行中的请求不受影响。`
+  } catch (e) {
+    selectedConcurrency.value = concurrency.value
+    error.value = String(e)
+  } finally {
+    concurrencySaving.value = false
+  }
+}
 // This is the exact model namespace accepted by the OpenAI-compatible
 // /v1/chat/completions endpoint; account and Notebook IDs must both be used.
 const requestModelID = (account: Account, notebook: Notebook) =>
@@ -95,12 +117,15 @@ async function refresh() {
   loading.value = true
   error.value = ''
   try {
-    const [foundAccounts, foundSources] = await Promise.all([
+    const [foundAccounts, foundSources, settings] = await Promise.all([
       call<{ accounts: Account[] }>('/api/notebook/accounts'),
       call<{ sources: SourceAccount[] }>('/api/notebook/sources'),
+      call<{ concurrency: number }>('/api/notebook/settings'),
     ])
     accounts.value = foundAccounts.accounts
     sources.value = foundSources.sources
+    concurrency.value = settings.concurrency
+    selectedConcurrency.value = settings.concurrency
     if (!sourceSelectionInitialized.value) {
       sourceAccountID.value = sources.value[0]?.id || ''
       sourceSelectionInitialized.value = true
@@ -186,6 +211,34 @@ onActivated(refresh)
       >
         刷新列表
       </button>
+    </div>
+    <div
+      v-if="props.mode === 'accounts'"
+      class="mb-3 flex flex-wrap items-center gap-3 rounded border border-line bg-panel px-3 py-3"
+    >
+      <label for="notebook-concurrency" class="text-sm font-medium text-white">
+        Notebook 单来源最大并发
+      </label>
+      <select
+        id="notebook-concurrency"
+        v-model.number="selectedConcurrency"
+        class="rounded border border-line bg-panel px-3 py-2 text-sm text-white"
+        :disabled="concurrencySaving || loading || pending"
+      >
+        <option v-for="n in concurrencyOptions" :key="n" :value="n">{{ n }}</option>
+      </select>
+      <button
+        type="button"
+        class="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50"
+        :disabled="concurrencySaving || loading || pending || selectedConcurrency === concurrency"
+        @click="saveConcurrency"
+      >
+        {{ concurrencySaving ? '保存中…' : '保存并发设置' }}
+      </button>
+      <span class="text-xs text-gray-400">
+        默认 4 · 范围 1～16 · 最多排队 10 条，等待 30 秒。
+        Camoufox 标签页容量随设置调整；SpiderMonkey 复用现有 HTTP 会话。
+      </span>
     </div>
     <div v-if="props.mode === 'accounts'" class="mb-3 flex flex-wrap gap-2">
       <input

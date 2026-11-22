@@ -124,7 +124,7 @@ func Start(ctx context.Context, options Options) (*Worker, error) {
 	options.CacheDirectory = cacheDirectory
 	worker := &Worker{cacheLock: cacheLock, options: options, tabs: make(map[string]*tabUse), rhythm: account}
 	worker.notebookPages = pagepool.New[string](
-		2, notebookTabIdleTimeout,
+		4, notebookTabIdleTimeout,
 		func(ctx context.Context) (string, error) {
 			worker.mu.Lock()
 			running := !worker.closed && worker.client != nil

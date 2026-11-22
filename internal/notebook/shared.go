@@ -36,6 +36,9 @@ type SharedSessions interface {
 func NewWithShared(root string, sessions SharedSessions) *Provider {
 	p := New(root)
 	p.shared = sessions
+	if c, ok := sessions.(interface{ SetNotebookConcurrency(int) }); ok {
+		c.SetNotebookConcurrency(p.Concurrency())
+	}
 	return p
 }
 func (p *Provider) Sources(ctx context.Context) ([]SourceAccount, error) {

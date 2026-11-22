@@ -79,6 +79,36 @@ func New[T comparable](max int, idle time.Duration, open func(context.Context) (
 	return &Pool[T]{max: max, idle: idle, newPage: open, closePage: close, changed: make(chan struct{})}
 }
 
+// SetMax changes the maximum number of cached/active pages in-place.
+// Idle surplus pages are disposed immediately. Active leases are never
+// interrupted; if the maximum was lowered they are disposed on return.
+// In-flight page opens count against the limit once they finish.
+func (p *Pool[T]) SetMax(max int) {
+	if max < 1 { max = 1 }
+	p.mu.Lock()
+	if p.closed { p.mu.Unlock(); return }
+	p.max = max
+	var surplus []T
+	for len(p.slots) > p.max {
+		idx := -1
+		for i, item := range p.slots {
+			if !item.busy {
+				idx = i
+				break
+			}
+		}
+		if idx < 0 { break }
+		item := p.slots[idx]
+		item.epoch++
+		if item.timer != nil { item.timer.Stop(); item.timer = nil }
+		surplus = append(surplus, item.page)
+		p.forgetLocked(item)
+	}
+	p.notifyLocked()
+	p.mu.Unlock()
+	for _, page := range surplus { _ = p.closePage(page) }
+}
+
 func (p *Pool[T]) notifyLocked() {
 	close(p.changed)
 	p.changed = make(chan struct{})
@@ -125,6 +155,13 @@ func (p *Pool[T]) Acquire(ctx context.Context) (*Lease[T], error) {
 				_ = p.closePage(page)
 				return nil, ErrClosed
 			}
+			if len(p.slots) >= p.max {
+				// The configured maximum may have shrunk while the
+				// underlying browser was still opening this page.
+				p.mu.Unlock()
+				_ = p.closePage(page)
+				continue
+			}
 			item := &slot[T]{page: page, busy: true}
 			p.slots = append(p.slots, item)
 			p.mu.Unlock()
@@ -157,7 +194,7 @@ func (l *Lease[T]) release(discard bool) error {
 		p.mu.Lock()
 		item.busy = false
 		item.epoch++
-		if discard || p.closed || p.idle <= 0 {
+		if discard || p.closed || p.idle <= 0 || len(p.slots) > p.max {
 			if item.timer != nil {
 				item.timer.Stop()
 				item.timer = nil
