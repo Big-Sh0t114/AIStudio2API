@@ -1,0 +1,71 @@
+name: Windows EXE (Notebook integration)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notebook-windows-exe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-exe:
+    name: Build Windows x64 EXE
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CGO_ENABLED: '1'
+      GOTOOLCHAIN: auto
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.18.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install Windows cross compiler
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/llvm-mingw-20261020-ucrt-ubuntu-22.04-x86_64.tar.xz | tar -xJ -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/llvm-mingw-20261020-ucrt-ubuntu-22.04-x86_64/bin" >> "$GITHUB_PATH"
+
+      - uses: ./.github/actions/static-libraries
+        with:
+          target: windows-amd64
+
+      - name: Build Windows desktop executable
+        shell: bash
+        run: |
+          mkdir -p bin
+          CGO_ENABLED=0 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.29
+          jq '.fixed.file_version = "0.0.0" | .info["0000"].ProductVersion = "0.0.0"' build/windows/info.json > bin/info.json
+          wails3 generate syso -arch amd64 -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info bin/info.json -out cmd/aistudio2api/rsrc_windows_amd64.syso
+          CC=x86_64-w64-mingw32-clang CXX=x86_64-w64-mingw32-clang++ GOOS=windows GOARCH=amd64 go build -mod=readonly -trimpath -tags desktop,production -ldflags="-s -w -H windowsgui -extldflags '-Wl,--gc-sections -Wl,--icf=safe'" -o bin/aistudio2api.exe ./cmd/aistudio2api
+          test -s bin/aistudio2api.exe
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v7
+        with:
+          name: aistudio2api-notebook-windows-amd64
+          path: bin/aistudio2api.exe
+          if-no-files-found: error
+          retention-days: 30
