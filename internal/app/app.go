@@ -20,6 +20,7 @@ import (
 	"github.com/Mag1cFall/AIStudio2API/internal/api"
 	"github.com/Mag1cFall/AIStudio2API/internal/config"
 	"github.com/Mag1cFall/AIStudio2API/internal/i18n"
+	"github.com/Mag1cFall/AIStudio2API/internal/notebook"
 	"github.com/Mag1cFall/AIStudio2API/internal/promptdb"
 	"github.com/Mag1cFall/AIStudio2API/internal/requestdb"
 	"github.com/Mag1cFall/AIStudio2API/internal/setup"
@@ -263,6 +264,8 @@ func runServer(ctx context.Context, cfg config.Config, manager *runtimeManager, 
 	}
 	manager.previewAddress = previewListener.Addr().String()
 	manager.settings.Store(requestSettingsOf(manager.currentConfig()))
+	notebookProvider := notebook.New(filepath.Join("runtime", "notebook"))
+	defer notebookProvider.Close()
 	apiHandler := api.NewHandler(manager, api.Config{
 		APIKey: cfg.ProxyAPIKey, Admin: manager, Ledger: manager.ledger, Prompts: manager.prompts, Updates: updater,
 		AdminAuthEnabled: cfg.AdminAuthEnabled, AdminUsername: cfg.AdminUsername, AdminPassword: cfg.AdminPassword,
@@ -270,7 +273,15 @@ func runServer(ctx context.Context, cfg config.Config, manager *runtimeManager, 
 		MediaDir:         filepath.Join("runtime", "media"), MediaLimit: mediaLimit, MediaLinks: manager.mediaLinks,
 		ResponseModes: manager.responseModes, WaitLaunch: manager.WaitLaunch,
 		SearchSettings: manager.searchSettings, EgressProxy: manager.egressProxy, States: manager.states,
-		PickPath: manager.pickPath,
+		PickPath: manager.pickPath, Notebook: notebookProvider,
+		NotebookAuthorized: func(key, email string) bool {
+			current := manager.currentConfig()
+			bound := apiKeyAccounts(current.ProxyAPIKey, current.APIKeyAccounts, current)
+			allowed, restricted := bound[key]
+			if !restricted { return true }
+			for _, account := range allowed { if strings.EqualFold(account, email) { return true } }
+			return false
+		},
 	})
 	server := &http.Server{
 		Handler:           rootHandler(apiHandler),
