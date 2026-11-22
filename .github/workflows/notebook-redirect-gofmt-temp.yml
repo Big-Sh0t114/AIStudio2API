@@ -1,0 +1,28 @@
+name: Format Notebook redirect fix (temporary)
+
+on:
+  push:
+    branches: [fix/notebook-spidermonkey-redirects]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Go format
+        run: gofmt -w internal/aistudio/notebook_http.go internal/aistudio/notebook_http_test.go internal/app/notebook_spidermonkey.go
+      - name: Commit formatted sources
+        run: |
+          git diff --check
+          if git diff --quiet; then
+            echo "No formatting changes"
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add internal/aistudio/notebook_http.go internal/aistudio/notebook_http_test.go internal/app/notebook_spidermonkey.go
+          git commit -m "style(notebook): gofmt redirect handling"
+          git push origin HEAD:fix/notebook-spidermonkey-redirects
