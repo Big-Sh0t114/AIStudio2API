@@ -39,10 +39,10 @@ func (s *server) handleNotebookSettings(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, 200, map[string]any{
-		"concurrency": s.config.Notebook.Concurrency(),
-		"minimum": notebook.MinConcurrency,
-		"maximum": notebook.MaxConcurrency,
-		"queue_limit": 10,
+		"concurrency":           s.config.Notebook.Concurrency(),
+		"minimum":               notebook.MinConcurrency,
+		"maximum":               notebook.MaxConcurrency,
+		"queue_limit":           10,
 		"queue_timeout_seconds": 30,
 	})
 }

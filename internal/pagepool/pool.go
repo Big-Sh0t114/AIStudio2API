@@ -84,9 +84,14 @@ func New[T comparable](max int, idle time.Duration, open func(context.Context) (
 // interrupted; if the maximum was lowered they are disposed on return.
 // In-flight page opens count against the limit once they finish.
 func (p *Pool[T]) SetMax(max int) {
-	if max < 1 { max = 1 }
+	if max < 1 {
+		max = 1
+	}
 	p.mu.Lock()
-	if p.closed { p.mu.Unlock(); return }
+	if p.closed {
+		p.mu.Unlock()
+		return
+	}
 	p.max = max
 	var surplus []T
 	for len(p.slots) > p.max {
@@ -97,16 +102,23 @@ func (p *Pool[T]) SetMax(max int) {
 				break
 			}
 		}
-		if idx < 0 { break }
+		if idx < 0 {
+			break
+		}
 		item := p.slots[idx]
 		item.epoch++
-		if item.timer != nil { item.timer.Stop(); item.timer = nil }
+		if item.timer != nil {
+			item.timer.Stop()
+			item.timer = nil
+		}
 		surplus = append(surplus, item.page)
 		p.forgetLocked(item)
 	}
 	p.notifyLocked()
 	p.mu.Unlock()
-	for _, page := range surplus { _ = p.closePage(page) }
+	for _, page := range surplus {
+		_ = p.closePage(page)
+	}
 }
 
 func (p *Pool[T]) notifyLocked() {

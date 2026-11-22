@@ -68,8 +68,8 @@ type Answer struct {
 	Citations []Citation `json:"citations"`
 }
 type persistent struct {
-	Accounts []AccountStatus `json:"accounts"`
-	Concurrency int `json:"concurrency,omitempty"`
+	Accounts    []AccountStatus `json:"accounts"`
+	Concurrency int             `json:"concurrency,omitempty"`
 }
 
 // notebookSourceSnapshot contains only source IDs/titles; no chat history.
@@ -88,13 +88,13 @@ type account struct {
 	httpBootstrap  *notebookBootstrap
 }
 type Provider struct {
-	mu       sync.RWMutex
-	saveMu   sync.Mutex // serializes writes to accounts.json.tmp
-	settingsMu sync.Mutex // serializes settings transactions and rollback
-	root     string
-	accounts map[string]*account
-	shared   SharedSessions
-	gates    map[string]*notebookGate // bounded per-Playground-source concurrency
+	mu              sync.RWMutex
+	saveMu          sync.Mutex // serializes writes to accounts.json.tmp
+	settingsMu      sync.Mutex // serializes settings transactions and rollback
+	root            string
+	accounts        map[string]*account
+	shared          SharedSessions
+	gates           map[string]*notebookGate // bounded per-Playground-source concurrency
 	concurrentLimit int
 }
 

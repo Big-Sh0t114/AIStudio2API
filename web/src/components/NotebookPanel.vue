@@ -236,8 +236,8 @@ onActivated(refresh)
         {{ concurrencySaving ? '保存中…' : '保存并发设置' }}
       </button>
       <span class="text-xs text-gray-400">
-        默认 4 · 范围 1～16 · 最多排队 10 条，等待 30 秒。
-        Camoufox 标签页容量随设置调整；SpiderMonkey 复用现有 HTTP 会话。
+        默认 4 · 范围 1～16 · 最多排队 10 条，等待 30 秒。 Camoufox
+        标签页容量随设置调整；SpiderMonkey 复用现有 HTTP 会话。
       </span>
     </div>
     <div v-if="props.mode === 'accounts'" class="mb-3 flex flex-wrap gap-2">

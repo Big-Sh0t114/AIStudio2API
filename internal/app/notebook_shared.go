@@ -13,15 +13,17 @@ import (
 
 // notebookSharedSessions uses a dedicated background tab of the existing
 // Playground Camoufox worker. No separate Chrome browser is launched.
-type notebookSharedSessions struct{
-	manager *runtimeManager
+type notebookSharedSessions struct {
+	manager         *runtimeManager
 	concurrentLimit atomic.Int32
 }
+
 // SetNotebookConcurrency configures the next borrowed Camoufox page lease.
 // Existing Notebook generations are not interrupted on a limit decrease.
 func (s *notebookSharedSessions) SetNotebookConcurrency(limit int) {
 	s.concurrentLimit.Store(int32(limit))
 }
+
 type notebookSharedPage struct {
 	notebook.SharedPage
 	once    sync.Once

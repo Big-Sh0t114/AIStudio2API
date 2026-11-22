@@ -12,9 +12,9 @@ import (
 // Notebook document or local alias. This prevents duplicated account records
 // from multiplying the permitted concurrency against the same Google quota.
 const (
-	DefaultConcurrency      = 4
-	MinConcurrency          = 1
-	MaxConcurrency          = 16
+	DefaultConcurrency        = 4
+	MinConcurrency            = 1
+	MaxConcurrency            = 16
 	notebookMaxQueuedRequests = 10
 	notebookQueueWait         = 30 * time.Second
 )

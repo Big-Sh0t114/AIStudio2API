@@ -180,7 +180,9 @@ func (p *concurrentNotebookPage) Evaluate(ctx context.Context, expression string
 func TestLinkedNotebookGenerationsRunInParallelWithIndependentPages(t *testing.T) {
 	sessions := &concurrentNotebookSessions{started: make(chan struct{}, 4), allow: make(chan struct{}, 4)}
 	p := NewWithShared(t.TempDir(), sessions)
-	if err := p.SetConcurrency(2); err != nil { t.Fatal(err) }
+	if err := p.SetConcurrency(2); err != nil {
+		t.Fatal(err)
+	}
 	st, err := p.CreateWithSource(context.Background(), "Concurrent", "playground-1")
 	if err != nil {
 		t.Fatal(err)
