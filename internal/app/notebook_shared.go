@@ -95,19 +95,30 @@ func (s *notebookSharedSessions) Open(ctx context.Context, accountID string) (no
 		acc.startupMu.Unlock()
 		return nil, errors.New("Playground browser worker is not ready")
 	}
-	page, err := runtime.OpenNotebookPage(ctx)
-	if err != nil {
-		acc.startupMu.Unlock()
-		return nil, err
+	var page notebook.SharedPage
+	if runtime.UsesSpiderMonkey() {
+		// SpiderMonkey is a Go HTTP + WAA JS runtime, without browser tabs.
+		// Borrow its authenticated HTTP session instead of starting Chrome.
+		page = &spiderNotebookPage{worker: runtime}
+	} else {
+		page, err = runtime.OpenNotebookPage(ctx)
+		if err != nil {
+			acc.startupMu.Unlock()
+			return nil, err
+		}
 	}
 	keep = true
 	keepActivity = true
-	return &notebookSharedPage{
+	leased := &notebookSharedPage{
 		SharedPage: page,
 		release: func() {
 			acc.startupMu.Unlock()
 			releaseActivity()
 			done()
 		},
-	}, nil
+	}
+	if runtime.UsesSpiderMonkey() {
+		return &notebookSharedHTTPPage{notebookSharedPage: leased}, nil
+	}
+	return leased, nil
 }

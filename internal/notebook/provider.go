@@ -84,6 +84,7 @@ type account struct {
 	// sourceMetadata is a short-lived catalog, like Playground's model catalog.
 	// Guarded by mu; it never stores conversation or user-specific history.
 	sourceMetadata map[string]notebookSourceSnapshot
+	httpBootstrap *notebookBootstrap
 }
 type Provider struct {
 	mu       sync.RWMutex
@@ -233,6 +234,7 @@ func (p *Provider) Login(ctx context.Context, id string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.sourceMetadata = nil
+	a.httpBootstrap = nil
 	if a.browser != nil {
 		if err := a.browser.close(); err != nil {
 			return err
@@ -291,7 +293,7 @@ func (p *Provider) Refresh(ctx context.Context, id string) (AccountStatus, error
 func (p *Provider) refreshLocked(ctx context.Context, a *account) error {
 	// Refresh always invalidates the cached Notebook source catalog.
 	a.sourceMetadata = nil
-	info, err := a.browser.evaluate(ctx, `(() => {const w=window.WIZ_global_data||{};return {email:w.oPEP7c||'',signedIn:!!(w.SNlM0e&&w.oPEP7c),url:location.href}})()`)
+	info, err := a.browser.loginInfo(ctx)
 	if err != nil {
 		return err
 	}
@@ -346,7 +348,7 @@ func (p *Provider) ensureBrowser(ctx context.Context, a *account) error {
 		if err != nil {
 			return err
 		}
-		a.browser = &browser{shared: page}
+		a.browser = &browser{shared: page, httpBootstrap: a.httpBootstrap}
 		return nil
 	}
 	if a.browser == nil {

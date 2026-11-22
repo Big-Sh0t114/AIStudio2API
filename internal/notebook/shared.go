@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -12,6 +13,16 @@ type SharedPage interface {
 	Evaluate(context.Context, string) (json.RawMessage, error)
 	Navigate(context.Context, string) error
 	Close() error
+}
+// HTTPPage is an optional direct transport for a linked SpiderMonkey worker.
+// Camoufox and standalone Chrome continue to use browser-side JavaScript.
+// It reuses the source account's HTTP client, proxy and authenticated cookies.
+type HTTPPage interface {
+	Fetch(ctx context.Context, method, target string, headers http.Header, body []byte) (HTTPResponse, error)
+}
+type HTTPResponse struct {
+	Status int
+	Body []byte
 }
 type SourceAccount struct {
 	ID    string `json:"id"`
@@ -77,6 +88,7 @@ func (p *Provider) CreateWithSource(ctx context.Context, label, sourceID string)
 // the borrowed Notebook tab; it cannot close the Playground worker.
 func (p *Provider) closeSharedPage(a *account) {
 	if a.status.SourceAccountID != "" && a.browser != nil {
+		a.httpBootstrap = a.browser.httpBootstrap
 		_ = a.browser.close()
 		a.browser = nil
 	}
