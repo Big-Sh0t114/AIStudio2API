@@ -49,8 +49,8 @@ func (p *Provider) execute(ctx context.Context, a *account, rpcID string, params
 			return result, err
 		}
 	}
-	if result.SignedOut {
-		return result, &APIError{Status: 401, Code: "auth_required", Message: "Notebook sign-in expired; reconnect account"}
+	if result.SignedOut || result.Status == 401 {
+		return result, &APIError{Status: 401, Code: "auth_required", Message: "Notebook sign-in expired; reconnect the linked Google account"}
 	}
 	if result.Status == 429 {
 		return result, &APIError{Status: 429, Code: "rate_limit_exceeded", Message: "Notebook HTTP 429", RetryAt: time.Now().Add(10 * time.Minute)}
