@@ -190,3 +190,20 @@ Google NotebookLM per-account concurrency entitlement.
 - Standalone Chrome Notebook accounts intentionally remain single-flight,
   because a single existing CDP browser page cannot safely process multiple
   independent chats simultaneously.
+
+## Troubleshooting `sources_not_ready` (HTTP 400)
+
+This error is raised before the generation RPC when `rLM1Ne` returns no
+usable ready source IDs. The error now includes ingestion counts:
+
+- `total=0`: the selected Notebook has no source rows. Verify the Notebook
+  model ID and inspect the official NotebookLM Sources panel.
+- `processing>0`: sources are still processing; wait and refresh.
+- `failed>0`: sources failed ingestion; retry or replace the source.
+- `unknown>0`: source status is unrecognized by the adapter.
+- `invalid_ids>0`: source ID envelope is not recognized; debug the source
+  row's structure without sharing private content.
+
+The adapter handles plain, nested and Drive-backed IDs and older rows without
+a status slot. Explicitly pending, failed, deleted, and unknown-status sources
+are not sent to generation. The 60-second ready-source cache remains in place.

@@ -185,6 +185,78 @@ func floatValue(v any) float64 { f, _ := v.(float64); return f }
 // every frequent request, while limiting stale content after source changes.
 const notebookSourceMetadataTTL = 60 * time.Second
 
+// notebookSourceStats captures source ingestion outcomes without storing
+// source text, URLs, or other user content in request logs.
+type notebookSourceStats struct {
+	total      int
+	ready      int
+	processing int
+	failed     int
+	unknown    int
+	invalidIDs int
+	legacy     int
+}
+
+// notebookSourceID handles ordinary source IDs ([id] or id) and Drive-backed
+// IDs ([nil, ..., [id]]) found in newer NotebookLM source envelopes.
+func notebookSourceID(raw any) string {
+	if id := str(raw); id != "" {
+		return id
+	}
+	id := str(at(raw, 0))
+	if id != "" {
+		return id
+	}
+	if at(raw, 0) == nil {
+		return str(at(raw, 2, 0))
+	}
+	return ""
+}
+
+// notebookReadySources extracts NotebookLM ready-source identifiers from an
+// rLM1Ne notebook row. Newer source status lives at source[3][1] (2 = ready).
+// Some older cohorts omit that slot; preserve those sources when their ID is
+// valid, as their availability is verified by the downstream generation RPC.
+func notebookReadySources(row any) ([]any, map[string]string, notebookSourceStats) {
+	var ids []any
+	titles := make(map[string]string)
+	var stats notebookSourceStats
+	for _, source := range array(at(row, 1)) {
+		stats.total++
+		statusRaw := at(source, 3, 1)
+		if statusRaw != nil {
+			switch number(statusRaw) {
+			case 2:
+				// ready
+			case 1, 5:
+				stats.processing++
+				continue
+			case 3, 4:
+				stats.failed++
+				continue
+			default:
+				stats.unknown++
+				continue
+			}
+		} else {
+			// Older NotebookLM source rows contain no explicit status.
+			stats.legacy++
+		}
+		sid := notebookSourceID(at(source, 0))
+		if sid == "" {
+			stats.invalidIDs++
+			continue
+		}
+		ids = append(ids, []any{[]any{sid}})
+		titles[sid] = str(at(source, 1))
+		stats.ready++
+	}
+	return ids, titles, stats
+}
+
+// readySources fetches source metadata on cache misses. Never silently discard
+// a source without reporting why; errors are useful when Google changes the
+// private rLM1Ne response schema.
 func (p *Provider) readySources(ctx context.Context, a *account, id string) ([]any, map[string]string, error) {
 	if snapshot, ok := a.sourceMetadata[id]; ok && time.Now().Before(snapshot.expires) {
 		return snapshot.ids, snapshot.titles, nil
@@ -198,21 +270,16 @@ func (p *Provider) readySources(ctx context.Context, a *account, id string) ([]a
 	if row == nil {
 		return nil, nil, &APIError{Status: 404, Code: "not_found", Message: "Notebook not found"}
 	}
-	var ids []any
-	titles := map[string]string{}
-	for _, s := range array(at(row, 1)) {
-		if number(at(s, 3, 1)) != 2 {
-			continue
-		}
-		sid := str(at(s, 0, 0))
-		if sid == "" {
-			continue
-		}
-		ids = append(ids, []any{[]any{sid}})
-		titles[sid] = str(at(s, 1))
-	}
+	ids, titles, stats := notebookReadySources(row)
 	if len(ids) == 0 {
-		return nil, nil, &APIError{Status: 400, Code: "sources_not_ready", Message: "This Notebook has no ready sources"}
+		return nil, nil, &APIError{
+			Status: 400,
+			Code:   "sources_not_ready",
+			Message: fmt.Sprintf(
+				"Notebook has no usable ready sources (total=%d, processing=%d, failed=%d, unknown=%d, invalid_ids=%d). Check the NotebookLM Sources panel and wait for processing, then refresh the Notebook account.",
+				stats.total, stats.processing, stats.failed, stats.unknown, stats.invalidIDs,
+			),
+		}
 	}
 	if a.sourceMetadata == nil {
 		a.sourceMetadata = make(map[string]notebookSourceSnapshot)
