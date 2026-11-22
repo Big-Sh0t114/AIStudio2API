@@ -11,7 +11,7 @@ const label=ref('')
 const error=ref('')
 const notice=ref('')
 async function call<T>(url:string,method='GET',body?:unknown):Promise<T>{
- const r=await fetch(url,{method,credentials:'same-origin',headers:{'content-type':'application/json'},body:body===undefined?null:JSON.stringify(body)})
+ const r=await fetch(url,{method,credentials:'same-origin',...(body===undefined?{}:{headers:{'content-type':'application/json'},body:JSON.stringify(body)})})
  const v=await r.json() as T & {error?:{message?:string}}
  if(!r.ok)throw new Error(v.error?.message||`HTTP ${r.status}`)
  return v
