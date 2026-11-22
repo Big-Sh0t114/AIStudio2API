@@ -27,6 +27,41 @@ const pending = ref(false)
 const label = ref('')
 const error = ref('')
 const notice = ref('')
+const copiedModelID = ref('')
+// This is the exact model namespace accepted by the OpenAI-compatible
+// /v1/chat/completions endpoint; account and Notebook IDs must both be used.
+const requestModelID = (account: Account, notebook: Notebook) =>
+  `notebook:${account.id}:${notebook.id}`
+async function copyRequestModelID(account: Account, notebook: Notebook) {
+  const modelID = requestModelID(account, notebook)
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable')
+    await navigator.clipboard.writeText(modelID)
+    copiedModelID.value = modelID
+    return
+  } catch {
+    // Wails WebView or an HTTP origin may not expose async clipboard.
+    // Provide a synchronous clipboard fallback on this user-initiated click.
+    const textarea = document.createElement('textarea')
+    textarea.value = modelID
+    textarea.readOnly = true
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    let success = false
+    try {
+      success = document.execCommand('copy')
+    } finally {
+      textarea.remove()
+    }
+    if (success) {
+      copiedModelID.value = modelID
+    } else {
+      error.value = '自动复制失败，请手动选中请求模型 ID 复制。'
+    }
+  }
+}
 // Keep legacy duplicates visible; removing them silently can break
 // external notebook:<account-id>:<notebook-id> model references.
 const boundCount = (sourceID: string) =>
@@ -227,9 +262,29 @@ onActivated(refresh)
           <div class="mt-1 text-xs text-gray-500">重置 {{ when(w.resets_at) }}</div>
         </div>
         <template v-if="props.mode === 'accounts'">
-          <div class="mt-3 max-h-28 overflow-y-auto text-xs text-gray-400">
-            <div v-for="nb in a.notebooks" :key="nb.id" :title="`notebook:${a.id}:${nb.id}`">
-              {{ nb.title }} · {{ nb.source_count }} 个来源
+          <div class="mt-3 text-xs text-gray-400">
+            <div class="mb-2">请求模型 ID（用于 OpenAI Chat Completions 的 model 参数）</div>
+            <div v-if="!a.notebooks?.length" class="text-gray-500">
+              暂无可用 Notebook 模型，请先刷新账号状态。
+            </div>
+            <div v-else class="max-h-56 space-y-2 overflow-y-auto">
+              <div v-for="nb in a.notebooks" :key="nb.id" class="rounded border border-line p-2">
+                <div class="mb-1 text-gray-300">{{ nb.title }} · {{ nb.source_count }} 个来源</div>
+                <div class="flex items-center gap-2">
+                  <code
+                    class="min-w-0 flex-1 select-all break-all font-mono text-xs text-blue-300"
+                    :title="requestModelID(a, nb)"
+                  >{{ requestModelID(a, nb) }}</code>
+                  <button
+                    type="button"
+                    class="shrink-0 rounded border border-line px-2 py-1 text-xs text-gray-300"
+                    :aria-label="`复制 ${nb.title} 的请求模型 ID`"
+                    @click="copyRequestModelID(a, nb)"
+                  >
+                    {{ copiedModelID === requestModelID(a, nb) ? '已复制' : '复制 ID' }}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           <div class="mt-3 flex flex-wrap gap-2">
