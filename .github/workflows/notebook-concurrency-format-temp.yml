@@ -1,0 +1,39 @@
+name: Format configurable Notebook concurrency (temporary)
+
+on:
+  push:
+    branches: [feat/notebook-configurable-concurrency]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.18.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Format Notebook settings UI
+        working-directory: web
+        run: |
+          npm ci
+          npx vp fmt src/components/NotebookPanel.vue
+      - name: Format Notebook and page pool Go files
+        run: |
+          gofmt -w internal/notebook/concurrency.go internal/notebook/provider.go internal/notebook/shared.go internal/notebook/settings.go internal/notebook/settings_test.go internal/notebook/concurrency_test.go internal/pagepool/pool.go internal/pagepool/resizing_test.go internal/camoufoxnative/notebook.go internal/camoufoxnative/worker.go internal/aistudio/runtime_native.go internal/app/notebook_shared.go internal/api/notebook_settings.go internal/api/router.go
+      - name: Commit formatted source
+        run: |
+          git diff --check
+          if git diff --quiet; then
+            echo "No format changes"
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add internal/notebook internal/pagepool internal/camoufoxnative/notebook.go internal/camoufoxnative/worker.go internal/aistudio/runtime_native.go internal/app/notebook_shared.go internal/api/notebook_settings.go internal/api/router.go web/src/components/NotebookPanel.vue
+          git commit -m "style(notebook): format configurable concurrency implementation"
+          git push origin HEAD:feat/notebook-configurable-concurrency
