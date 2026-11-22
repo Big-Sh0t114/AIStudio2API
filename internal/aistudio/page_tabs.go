@@ -7,6 +7,8 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/Mag1cFall/AIStudio2API/internal/pagepool"
 )
 
 // pageTab 是账户 WAA Worker 的一个页面
@@ -125,16 +127,23 @@ func (worker *NativeWorker) notifyTabs() {
 
 // pageFor 返回 lease 正在使用的页面，没有时返回空出最早的未退役空闲页面，都在使用中时返回 nil；调用方持有 tabsMu
 func (worker *NativeWorker) pageFor(lease *AccountLease) *pageTab {
-	var free *pageTab
-	for _, tab := range worker.tabs {
+	// Preserve Playground's request affinity, then use the same oldest-free
+	// selection policy as Notebook's generic page pool.
+	states := make([]pagepool.Status, len(worker.tabs))
+	for i, tab := range worker.tabs {
 		if tab.holder == lease {
 			return tab
 		}
-		if !tab.retired && (tab.holder == nil || !leaseActive(tab.holder)) && (free == nil || tab.freed.Before(free.freed)) {
-			free = tab
+		states[i] = pagepool.Status{
+			Busy:    tab.holder != nil && leaseActive(tab.holder),
+			Retired: tab.retired,
+			Freed:   tab.freed,
 		}
 	}
-	return free
+	if idx := pagepool.PickOldestFree(states); idx >= 0 {
+		return worker.tabs[idx]
+	}
+	return nil
 }
 
 // openSpare 在 lease 取走最后一个空闲页面、账户另有页面在用时，像用户再开一个标签页一样在后台预先载入页面，以 ctx 中请求的模型打开，账户的页面数至多比单账户并发数多 1；调用方持有 tabsMu
@@ -155,7 +164,7 @@ func (worker *NativeWorker) openSpare(ctx context.Context, lease *AccountLease) 
 	lease.pool.mu.Lock()
 	limit := lease.pool.perAccountConcurrency
 	lease.pool.mu.Unlock()
-	if held < pages || held < 2 || pages > limit {
+	if !pagepool.NeedsSpare(pages, held, limit) {
 		return
 	}
 	worker.openPage(ctx, true)

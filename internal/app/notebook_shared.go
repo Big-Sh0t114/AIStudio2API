@@ -67,6 +67,19 @@ func (s *notebookSharedSessions) Open(ctx context.Context, accountID string) (no
 			return nil, fmt.Errorf("start Playground worker for shared Notebook: %w", err)
 		}
 	}
+	// Count Notebook work as activity of this Playground browser, so its
+	// worker cannot be selected as an idle eviction victim mid-request.
+	// This is not an AI Studio model lease and does not spend WAA quota.
+	releaseActivity, err := workers.pool.BeginBrowserOperation(accountID)
+	if err != nil {
+		return nil, err
+	}
+	keepActivity := false
+	defer func() {
+		if !keepActivity {
+			releaseActivity()
+		}
+	}()
 	// Block resets and idle eviction while the borrowed tab is active.
 	// AI Studio requests may still use the existing worker concurrently.
 	acc.startupMu.Lock()
@@ -88,5 +101,13 @@ func (s *notebookSharedSessions) Open(ctx context.Context, accountID string) (no
 		return nil, err
 	}
 	keep = true
-	return &notebookSharedPage{SharedPage: page, release: func() { acc.startupMu.Unlock(); done() }}, nil
+	keepActivity = true
+	return &notebookSharedPage{
+		SharedPage: page,
+		release: func() {
+			acc.startupMu.Unlock()
+			releaseActivity()
+			done()
+		},
+	}, nil
 }

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Mag1cFall/AIStudio2API/internal/pagepool"
 )
 
 // NotebookPage borrows a temporary background tab without navigating the
@@ -18,133 +20,39 @@ type NotebookPage struct {
 	contextID string
 	mu        sync.Mutex
 	closed    bool
+	lease     *pagepool.Lease[string]
 }
 
-// notebookTabIdleTimeout keeps an idle Notebook page warm for frequent calls.
-// Each Playground worker owns at most one idle Notebook tab.
+// notebookTabIdleTimeout is a service-specific retention policy. The page
+// lease implementation is shared with Playground; Notebook owns only its URL
+// and RPC adapter.
 const notebookTabIdleTimeout = 120 * time.Second
 
-// notebookTabCache is an idle-tab pool scoped to a single Camoufox worker.
-// A generation counter makes stale timer callbacks harmless after a Take.
-type notebookTabCache struct {
-	mu         sync.Mutex
-	idleID     string
-	timer      *time.Timer
-	generation uint64
-	closed     bool
-	ttl        time.Duration
-	discard    func(string)
-}
-
-func newNotebookTabCache(ttl time.Duration, discard func(string)) *notebookTabCache {
-	return &notebookTabCache{ttl: ttl, discard: discard}
-}
-func (cache *notebookTabCache) Take() (string, bool) {
-	cache.mu.Lock()
-	defer cache.mu.Unlock()
-	if cache.closed {
-		return "", false
-	}
-	cache.generation++
-	if cache.timer != nil {
-		cache.timer.Stop()
-		cache.timer = nil
-	}
-	id := cache.idleID
-	cache.idleID = ""
-	return id, true
-}
-func (cache *notebookTabCache) Put(id string) {
-	if id == "" {
-		return
-	}
-	cache.mu.Lock()
-	cache.generation++
-	generation := cache.generation
-	if cache.timer != nil {
-		cache.timer.Stop()
-		cache.timer = nil
-	}
-	obsolete := cache.idleID
-	cache.idleID = ""
-	if cache.closed || cache.ttl <= 0 {
-		cache.mu.Unlock()
-		if obsolete != "" {
-			cache.discard(obsolete)
-		}
-		cache.discard(id)
-		return
-	}
-	cache.idleID = id
-	cache.timer = time.AfterFunc(cache.ttl, func() { cache.expire(generation) })
-	cache.mu.Unlock()
-	if obsolete != "" {
-		cache.discard(obsolete)
-	}
-}
-func (cache *notebookTabCache) expire(generation uint64) {
-	cache.mu.Lock()
-	if cache.closed || cache.generation != generation {
-		cache.mu.Unlock()
-		return
-	}
-	id := cache.idleID
-	cache.idleID = ""
-	cache.timer = nil
-	cache.mu.Unlock()
-	if id != "" {
-		cache.discard(id)
-	}
-}
-func (cache *notebookTabCache) Stop() {
-	cache.mu.Lock()
-	cache.closed = true
-	cache.generation++
-	if cache.timer != nil {
-		cache.timer.Stop()
-		cache.timer = nil
-	}
-	id := cache.idleID
-	cache.idleID = ""
-	cache.mu.Unlock()
-	if id != "" {
-		cache.discard(id)
-	}
-}
-
-// OpenNotebookPage reuses the warm tab when possible and otherwise opens one
-// in the background. It never selects or navigates the Playground chat tab.
+// OpenNotebookPage borrows a page from the Worker-scoped generic page pool.
+// Its lease is returned even if the caller's context is canceled, and an
+// invalid or redirected page is never handed to the next request.
 func (worker *Worker) OpenNotebookPage(ctx context.Context) (*NotebookPage, error) {
-	worker.mu.Lock()
-	ready := !worker.closed && worker.client != nil
-	worker.mu.Unlock()
-	if !ready {
-		return nil, errors.New("Playground Camoufox worker is not running")
+	if worker.notebookPages == nil {
+		return nil, errors.New("Notebook page pool is unavailable")
 	}
-	if worker.notebookCache != nil {
-		id, alive := worker.notebookCache.Take()
-		if !alive {
-			return nil, errors.New("Playground Camoufox worker is shutting down")
+	for attempts := 0; attempts < 2; attempts++ {
+		lease, err := worker.notebookPages.Acquire(ctx)
+		if err != nil {
+			return nil, err
 		}
-		if id != "" {
-			onOrigin, err := worker.client.evaluateBool(ctx, id, "location.origin === 'https://notebook.google.com'")
-			if err == nil && onOrigin {
-				return &NotebookPage{worker: worker, contextID: id}, nil
-			}
-			_ = worker.closeTab(id)
+		contextID := lease.Page()
+		onOrigin, err := worker.client.evaluateBool(ctx, contextID, "location.origin === 'https://notebook.google.com'")
+		if err == nil && onOrigin {
+			return &NotebookPage{worker: worker, contextID: contextID, lease: lease}, nil
+		}
+		// Browser context was replaced, navigated away, or lost. Discard the
+		// lease and replace the tab rather than leaking an unsafe page.
+		_ = lease.Discard()
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
 	}
-	id, err := worker.createTab(ctx)
-	if err != nil {
-		return nil, err
-	}
-	page := &NotebookPage{worker: worker, contextID: id}
-	if err = page.Navigate(ctx, "https://notebook.google.com/"); err != nil {
-		// A failed navigation must not become a cached tab.
-		_ = worker.closeTab(id)
-		return nil, err
-	}
-	return page, nil
+	return nil, errors.New("Notebook page did not stay on notebook.google.com")
 }
 
 // Evaluate serializes nested Notebook RPC responses as JSON, since BiDi
@@ -188,7 +96,8 @@ func (page *NotebookPage) Navigate(ctx context.Context, target string) error {
 	return nil
 }
 
-// Close releases the request's lease. A valid page stays warm for 120 seconds.
+// Close returns the page lease to the shared page pool. An idle Notebook tab
+// remains warm for up to 120 seconds; the Playground Worker remains running.
 func (page *NotebookPage) Close() error {
 	page.mu.Lock()
 	if page.closed {
@@ -197,9 +106,8 @@ func (page *NotebookPage) Close() error {
 	}
 	page.closed = true
 	page.mu.Unlock()
-	if page.worker.notebookCache != nil {
-		page.worker.notebookCache.Put(page.contextID)
-		return nil
+	if page.lease != nil {
+		return page.lease.Release()
 	}
 	return page.worker.closeTab(page.contextID)
 }

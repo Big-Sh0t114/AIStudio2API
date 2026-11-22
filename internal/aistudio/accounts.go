@@ -321,20 +321,23 @@ type ModelAccess struct {
 
 // Account 表示一个稳定目录对应的 AI Studio 账户
 type Account struct {
-	ID                    string        `json:"id"`
-	Directory             string        `json:"-"`
-	ConfigPath            string        `json:"-"`
-	StoragePath           string        `json:"-"`
-	RuntimePath           string        `json:"-"`
-	Config                AccountConfig `json:"config"`
-	StorageState          StorageState  `json:"-"`
-	Models                []Model       `json:"models,omitempty"`
-	BenefitTier           BenefitTier   `json:"benefit_tier"`
-	State                 AccountState  `json:"state"`
-	LastUsed              time.Time     `json:"last_used,omitempty"`
-	runtime               accountRuntimeState
-	runtimeData           []byte
-	active                int
+	ID           string        `json:"id"`
+	Directory    string        `json:"-"`
+	ConfigPath   string        `json:"-"`
+	StoragePath  string        `json:"-"`
+	RuntimePath  string        `json:"-"`
+	Config       AccountConfig `json:"config"`
+	StorageState StorageState  `json:"-"`
+	Models       []Model       `json:"models,omitempty"`
+	BenefitTier  BenefitTier   `json:"benefit_tier"`
+	State        AccountState  `json:"state"`
+	LastUsed     time.Time     `json:"last_used,omitempty"`
+	runtime      accountRuntimeState
+	runtimeData  []byte
+	active       int
+	// browserOperations tracks Notebook operations using the shared browser
+	// without applying AI Studio's model quota or protected-request limits.
+	browserOperations     int
 	exclusive             bool
 	exclusiveWaiters      int
 	authRefreshers        int
@@ -1186,7 +1189,7 @@ func (p *AccountPool) Remove(accountID string, deleteDirectory func(*Account) er
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: %s", ErrAccountNotFound, accountID)
 	}
-	if account.exclusive || account.exclusiveWaiters > 0 || account.active > 0 {
+	if account.exclusive || account.exclusiveWaiters > 0 || account.active > 0 || account.browserOperations > 0 {
 		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: %s", ErrAccountLeased, accountID)
 	}
@@ -1285,7 +1288,7 @@ func (p *AccountPool) AcquireAccount(ctx context.Context, accountID string) (*Ac
 			p.mu.Unlock()
 			return nil, fmt.Errorf("%w: %s", ErrAccountNotFound, accountID)
 		}
-		if !account.exclusive && account.authRefreshers == 0 && account.active == 0 {
+		if !account.exclusive && account.authRefreshers == 0 && account.active == 0 && account.browserOperations == 0 {
 			checkedAt := time.Now().UTC()
 			leaseLock, err := acquireAccountFileLease(account.StoragePath)
 			if err == nil {
@@ -3026,13 +3029,13 @@ func (p *AccountPool) Status() []AccountStatus {
 			Message:     message,
 			Directory:   account.Directory,
 
-			Transition:       progress.operation,
-			TransitionStep:   progress.step,
-			TransitionIndex:  progress.index,
-			TransitionTotal:  progress.total,
-			TransitionSince:  progress.since,
-			CatalogError:     catalogError,
-			ActiveRequests:   account.active,
+			Transition:           progress.operation,
+			TransitionStep:       progress.step,
+			TransitionIndex:      progress.index,
+			TransitionTotal:      progress.total,
+			TransitionSince:      progress.since,
+			CatalogError:         catalogError,
+			ActiveRequests:       account.active,
 			CatalogSyncedAt:      account.catalogSyncedAt,
 			HiddenDiscovered:     account.hiddenDiscovered,
 			HiddenModels:         len(account.hiddenModels),
@@ -3468,7 +3471,33 @@ func (p *AccountPool) SlotBusy(accountID string) bool {
 	return account != nil && (account.exclusive || account.exclusiveWaiters > 0 || account.authRefreshers > 0 || account.active >= p.perAccountConcurrency)
 }
 
-// Activity 返回账户是否存在活动租约或独占操作及最近使用时间
+// BeginBrowserOperation records non-WAA work borrowing an account's existing
+// browser. It participates in the same last-used and idle-eviction accounting
+// as Playground requests, but does not share Notebook and AI Studio quotas.
+func (p *AccountPool) BeginBrowserOperation(accountID string) (func(), error) {
+	p.mu.Lock()
+	account := p.byID[accountID]
+	if account == nil {
+		p.mu.Unlock()
+		return nil, fmt.Errorf("%w: %s", ErrAccountNotFound, accountID)
+	}
+	account.browserOperations++
+	account.LastUsed = time.Now()
+	p.notifyLocked()
+	p.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			p.mu.Lock()
+			account.browserOperations--
+			account.LastUsed = time.Now()
+			p.notifyLocked()
+			p.mu.Unlock()
+		})
+	}, nil
+}
+
+// Activity 返回账户是否存在活动租约、浏览器操作或独占操作及最近使用时间
 func (p *AccountPool) Activity(accountID string) (bool, time.Time) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -3476,7 +3505,7 @@ func (p *AccountPool) Activity(accountID string) (bool, time.Time) {
 	if account == nil {
 		return false, time.Time{}
 	}
-	return account.exclusive || account.exclusiveWaiters > 0 || account.authRefreshers > 0 || account.active > 0, account.LastUsed
+	return account.exclusive || account.exclusiveWaiters > 0 || account.authRefreshers > 0 || account.active > 0 || account.browserOperations > 0, account.LastUsed
 }
 
 // Changed 返回账户池下一次租约或状态变化时关闭的通道
