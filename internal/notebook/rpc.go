@@ -294,6 +294,7 @@ func (p *Provider) readySources(ctx context.Context, a *account, id string) ([]a
 	a.sourceMetadata[id] = notebookSourceSnapshot{ids: ids, titles: titles, expires: time.Now().Add(notebookSourceMetadataTTL)}
 	return ids, titles, nil
 }
+
 // sourceFreeUnavailable reports a rejected source-free request without
 // claiming that Google's newer Pro/Ultra agentic protocol was exercised.
 func sourceFreeUnavailable() *APIError {

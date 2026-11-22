@@ -10,13 +10,13 @@ import (
 )
 
 type sourceFreeSessions struct {
-	mu          sync.Mutex
-	sourceRows  []any
+	mu             sync.Mutex
+	sourceRows     []any
 	rejectChat     bool
 	chatHTTPStatus int
 	chatCalls      int
-	sourceCalls int
-	sourceArg   any
+	sourceCalls    int
+	sourceArg      any
 }
 
 func (s *sourceFreeSessions) Sources(context.Context) ([]SourceAccount, error) {
