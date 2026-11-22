@@ -316,7 +316,8 @@ export const messages: Record<TranslationKey, string> = {
   'logs.inputTokens': 'Input tokens',
   'logs.cachedTokens': 'Cached tokens',
   'logs.estimatedTokens': 'Estimate',
-  'logs.estimatedTokensHelp': 'Approximation from request and reply text only. Excludes Notebook sources, retrieval, and internal reasoning; not Google\'s billed usage.',
+  'logs.estimatedTokensHelp':
+    "Approximation from request and reply text only. Excludes Notebook sources, retrieval, and internal reasoning; not Google's billed usage.",
   'logs.totalTokens': 'Total tokens',
   'logs.inputMessages': 'Input messages',
   'logs.proofLock': 'Waiting for page',

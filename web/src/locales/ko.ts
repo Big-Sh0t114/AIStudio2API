@@ -316,7 +316,8 @@ export const messages: Record<TranslationKey, string> = {
   'logs.inputTokens': '입력 토큰',
   'logs.cachedTokens': '캐시된 토큰',
   'logs.estimatedTokens': '추정',
-  'logs.estimatedTokensHelp': '요청 및 응답 텍스트만으로 추정한 값입니다. Notebook 자료와 내부 검색·추론은 제외되며 Google의 실제 과금 사용량이 아닙니다.',
+  'logs.estimatedTokensHelp':
+    '요청 및 응답 텍스트만으로 추정한 값입니다. Notebook 자료와 내부 검색·추론은 제외되며 Google의 실제 과금 사용량이 아닙니다.',
   'logs.totalTokens': '총 토큰',
   'logs.inputMessages': '입력 메시지',
   'logs.proofLock': '페이지 대기',

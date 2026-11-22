@@ -41,7 +41,7 @@ func requestLogData(entry api.AccessLog) *api.RequestLog {
 	if usage := entry.Usage; usage != nil {
 		output := usage.OutputTokens + usage.ReasoningTokens
 		data.Usage = &api.RequestLogUsage{
-			Estimated: usage.Estimated,
+			Estimated:   usage.Estimated,
 			InputTokens: usage.InputTokens + usage.ToolTokens, CachedTokens: usage.CachedTokens, ReasoningTokens: usage.ReasoningTokens,
 			ReplyTokens: usage.OutputTokens, OutputTokens: output, TotalTokens: usage.TotalTokens,
 		}

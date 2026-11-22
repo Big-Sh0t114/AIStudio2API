@@ -323,7 +323,8 @@ export const messages: Record<TranslationKey, string> = {
   'logs.inputTokens': 'Jetons en entrée',
   'logs.cachedTokens': 'Jetons en cache',
   'logs.estimatedTokens': 'Estimation',
-  'logs.estimatedTokensHelp': 'Estimation basée uniquement sur les textes reçus et envoyés, sans sources Notebook ni raisonnement interne ; ce n\'est pas l\'usage facturé par Google.',
+  'logs.estimatedTokensHelp':
+    "Estimation basée uniquement sur les textes reçus et envoyés, sans sources Notebook ni raisonnement interne ; ce n'est pas l'usage facturé par Google.",
   'logs.totalTokens': 'Total des jetons',
   'logs.inputMessages': 'Messages en entrée',
   'logs.proofLock': 'Attente de la page',

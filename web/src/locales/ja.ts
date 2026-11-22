@@ -320,7 +320,8 @@ export const messages: Record<TranslationKey, string> = {
   'logs.inputTokens': '入力トークン',
   'logs.cachedTokens': 'キャッシュ済みトークン',
   'logs.estimatedTokens': '推定',
-  'logs.estimatedTokensHelp': '送受信テキストのみの概算です。Notebook のソース、検索、内部推論は含まず、Google の請求トークン数ではありません。',
+  'logs.estimatedTokensHelp':
+    '送受信テキストのみの概算です。Notebook のソース、検索、内部推論は含まず、Google の請求トークン数ではありません。',
   'logs.totalTokens': '合計トークン',
   'logs.inputMessages': '入力メッセージ',
   'logs.proofLock': 'ページ待ち',

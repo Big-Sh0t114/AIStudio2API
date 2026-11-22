@@ -296,7 +296,8 @@ export const messages = {
   'logs.inputTokens': '输入用量',
   'logs.cachedTokens': '缓存命中',
   'logs.estimatedTokens': '估算',
-  'logs.estimatedTokensHelp': '根据请求/回复文本粗略估算，不包含 Notebook 资料、内部检索与推理；不是 Google 计费用量。',
+  'logs.estimatedTokensHelp':
+    '根据请求/回复文本粗略估算，不包含 Notebook 资料、内部检索与推理；不是 Google 计费用量。',
   'logs.totalTokens': '总用量',
   'logs.inputMessages': '输入消息',
   'logs.proofLock': '等待页面',

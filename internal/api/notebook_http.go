@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Mag1cFall/AIStudio2API/internal/notebook"
 	"github.com/Mag1cFall/AIStudio2API/internal/aistudio"
+	"github.com/Mag1cFall/AIStudio2API/internal/notebook"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -35,6 +35,7 @@ func notebookModelInBody(r *http.Request) bool {
 	}
 	return bytes.Contains(bytes.ReplaceAll(prefix, []byte(" "), nil), []byte(`"model":"notebook:`))
 }
+
 // notebookTextTokens is a deliberately approximate text-only heuristic. The
 // private NotebookLM RPC does not expose a token usage count, and retrieved
 // sources, hidden prompts and internal reasoning are not represented here.
@@ -193,10 +194,10 @@ func (s *server) handleNotebookOrChat(w http.ResponseWriter, r *http.Request) {
 		"choices":   []any{map[string]any{"index": 0, "message": map[string]any{"role": "assistant", "content": content}, "finish_reason": "stop"}},
 		"citations": ans.Citations,
 		"usage": map[string]any{
-			"prompt_tokens": usage.InputTokens,
+			"prompt_tokens":     usage.InputTokens,
 			"completion_tokens": usage.OutputTokens,
-			"total_tokens": usage.TotalTokens,
-			"estimated": true,
+			"total_tokens":      usage.TotalTokens,
+			"estimated":         true,
 			"estimation_method": "text_only_heuristic",
 		},
 	})

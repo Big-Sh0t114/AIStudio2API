@@ -302,7 +302,8 @@ export const messages: Record<TranslationKey, string> = {
   'logs.inputTokens': '輸入 Token',
   'logs.cachedTokens': '快取命中',
   'logs.estimatedTokens': '估算',
-  'logs.estimatedTokensHelp': '依請求與回覆文字粗略估算，不包含 Notebook 資料、內部檢索與推理；並非 Google 計費用量。',
+  'logs.estimatedTokensHelp':
+    '依請求與回覆文字粗略估算，不包含 Notebook 資料、內部檢索與推理；並非 Google 計費用量。',
   'logs.totalTokens': 'Token 總計',
   'logs.inputMessages': '輸入訊息',
   'logs.proofLock': '等待頁面',

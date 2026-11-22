@@ -320,7 +320,8 @@ export const messages: Record<TranslationKey, string> = {
   'logs.inputTokens': 'Eingabe-Tokens',
   'logs.cachedTokens': 'Zwischengespeicherte Tokens',
   'logs.estimatedTokens': 'Schätzung',
-  'logs.estimatedTokensHelp': 'Schätzung nur anhand von Anfrage- und Antworttext; ohne Notebook-Quellen und interne Verarbeitung. Keine von Google gemeldete Abrechnung.',
+  'logs.estimatedTokensHelp':
+    'Schätzung nur anhand von Anfrage- und Antworttext; ohne Notebook-Quellen und interne Verarbeitung. Keine von Google gemeldete Abrechnung.',
   'logs.totalTokens': 'Tokens gesamt',
   'logs.inputMessages': 'Eingabenachrichten',
   'logs.proofLock': 'Warten auf Seite',
