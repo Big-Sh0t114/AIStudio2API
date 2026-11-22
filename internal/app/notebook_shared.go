@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Mag1cFall/AIStudio2API/internal/aistudio"
 	"github.com/Mag1cFall/AIStudio2API/internal/notebook"
@@ -12,7 +13,17 @@ import (
 
 // notebookSharedSessions uses a dedicated background tab of the existing
 // Playground Camoufox worker. No separate Chrome browser is launched.
-type notebookSharedSessions struct{ manager *runtimeManager }
+type notebookSharedSessions struct {
+	manager         *runtimeManager
+	concurrentLimit atomic.Int32
+}
+
+// SetNotebookConcurrency configures the next borrowed Camoufox page lease.
+// Existing Notebook generations are not interrupted on a limit decrease.
+func (s *notebookSharedSessions) SetNotebookConcurrency(limit int) {
+	s.concurrentLimit.Store(int32(limit))
+}
+
 type notebookSharedPage struct {
 	notebook.SharedPage
 	once    sync.Once
@@ -94,6 +105,9 @@ func (s *notebookSharedSessions) Open(ctx context.Context, accountID string) (no
 	if phase != aistudio.WorkerReady && phase != aistudio.WorkerBusy {
 		acc.startupMu.RUnlock()
 		return nil, errors.New("Playground browser worker is not ready")
+	}
+	if limit := s.concurrentLimit.Load(); limit > 0 {
+		runtime.SetNotebookConcurrency(int(limit))
 	}
 	var page notebook.SharedPage
 	if runtime.UsesSpiderMonkey() {

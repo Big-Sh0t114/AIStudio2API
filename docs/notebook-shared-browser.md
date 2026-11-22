@@ -158,3 +158,35 @@ or demand separate authentication. Validate with real multi-request traffic.
 - Do **not** use Notebook token estimates to determine billing, quotas or
   upstream throughput. Google quota/cooldown events remain authoritative.
 - Existing request logs are not retroactively changed.
+
+## Configurable Notebook parallelism
+
+The Gemini Notebook account page now exposes a single persistent
+**Notebook requests per Playground source** setting, ranging from **1 to 16**
+(default **4**). This is a local scheduling limit and not an official
+Google NotebookLM per-account concurrency entitlement.
+
+- The setting is loaded from and saved to `runtime/notebook/accounts.json`
+  using the top-level `concurrency` field. Existing installations without
+  that field start at 4. Notebook accounts, model IDs, cooldowns and usage
+  statistics remain unchanged when adjusting concurrency.
+- The authenticated control API exposes `GET /api/notebook/settings` and
+  `PUT /api/notebook/settings` with `{"concurrency":4}`. Invalid values,
+  including zero and numbers over 16, return HTTP 400.
+- Changes affect the local source-scoped queue **immediately**. Increasing
+  the setting wakes waiting requests; reducing it never interrupts work
+  already running. New requests wait for active requests to drop below
+  the configured limit.
+- Camoufox's Notebook-only page pool supports resizing between 1 and 16.
+  It is resized on the next Notebook page borrow; any excess idle tabs close
+  immediately when resizing, or expire normally after 120 seconds while
+  otherwise unused. Active Notebook tabs remain leased until their
+  requests finish, while Playground's WAA tabs are unaffected.
+- SpiderMonkey has no Notebook tabs. It uses the same configurable
+  source-level concurrent RPC gate, with independent request-local bootstrap
+  state and the existing shared authenticated Go HTTP client.
+- Up to 10 queued Notebook requests and a 30-second queue timeout remain
+  independent of the active concurrency setting.
+- Standalone Chrome Notebook accounts intentionally remain single-flight,
+  because a single existing CDP browser page cannot safely process multiple
+  independent chats simultaneously.

@@ -549,6 +549,13 @@ func (worker *NativeWorker) Retire() {
 // Close 关闭账户 WAA runtime
 // OpenNotebookPage borrows a temporary background Notebook tab from the
 // existing Camoufox runtime. It never opens a second Chrome process.
+// SetNotebookConcurrency resizes only Notebook's background page pool.
+// Playground WAA tabs and SpiderMonkey sessions are unaffected.
+func (worker *NativeWorker) SetNotebookConcurrency(limit int) {
+	if runtime, ok := worker.current().(camoufoxRuntime); ok {
+		runtime.Worker.SetNotebookConcurrency(limit)
+	}
+}
 func (worker *NativeWorker) OpenNotebookPage(ctx context.Context) (*camoufoxnative.NotebookPage, error) {
 	runtime, ok := worker.current().(camoufoxRuntime)
 	if !ok {

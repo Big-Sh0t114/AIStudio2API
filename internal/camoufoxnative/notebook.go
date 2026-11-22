@@ -28,6 +28,14 @@ type NotebookPage struct {
 // and RPC adapter.
 const notebookTabIdleTimeout = 120 * time.Second
 
+// SetNotebookConcurrency resizes the background Notebook page pool without
+// changing Playground tabs or closing active Notebook requests.
+func (worker *Worker) SetNotebookConcurrency(limit int) {
+	if worker.notebookPages != nil {
+		worker.notebookPages.SetMax(limit)
+	}
+}
+
 // OpenNotebookPage borrows a page from the Worker-scoped generic page pool.
 // Its lease is returned even if the caller's context is canceled, and an
 // invalid or redirected page is never handed to the next request.

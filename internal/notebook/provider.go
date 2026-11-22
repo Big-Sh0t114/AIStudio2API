@@ -68,7 +68,8 @@ type Answer struct {
 	Citations []Citation `json:"citations"`
 }
 type persistent struct {
-	Accounts []AccountStatus `json:"accounts"`
+	Accounts    []AccountStatus `json:"accounts"`
+	Concurrency int             `json:"concurrency,omitempty"`
 }
 
 // notebookSourceSnapshot contains only source IDs/titles; no chat history.
@@ -87,16 +88,18 @@ type account struct {
 	httpBootstrap  *notebookBootstrap
 }
 type Provider struct {
-	mu       sync.RWMutex
-	saveMu   sync.Mutex // serializes writes to accounts.json.tmp
-	root     string
-	accounts map[string]*account
-	shared   SharedSessions
-	gates    map[string]*notebookGate // bounded per-Playground-source concurrency
+	mu              sync.RWMutex
+	saveMu          sync.Mutex // serializes writes to accounts.json.tmp
+	settingsMu      sync.Mutex // serializes settings transactions and rollback
+	root            string
+	accounts        map[string]*account
+	shared          SharedSessions
+	gates           map[string]*notebookGate // bounded per-Playground-source concurrency
+	concurrentLimit int
 }
 
 func New(root string) *Provider {
-	p := &Provider{root: root, accounts: make(map[string]*account)}
+	p := &Provider{root: root, accounts: make(map[string]*account), concurrentLimit: DefaultConcurrency}
 	_ = os.MkdirAll(filepath.Join(root, "profiles"), 0700)
 	b, err := os.ReadFile(filepath.Join(root, "accounts.json"))
 	if err != nil {
@@ -105,6 +108,9 @@ func New(root string) *Provider {
 	var saved persistent
 	if json.Unmarshal(b, &saved) != nil {
 		return p
+	}
+	if saved.Concurrency >= MinConcurrency && saved.Concurrency <= MaxConcurrency {
+		p.concurrentLimit = saved.Concurrency
 	}
 	for _, v := range saved.Accounts {
 		if !validID(v.ID) {
@@ -172,7 +178,7 @@ func (p *Provider) save() error {
 	p.saveMu.Lock()
 	defer p.saveMu.Unlock()
 	list := p.Accounts()
-	payload, err := json.MarshalIndent(persistent{Accounts: list}, "", "  ")
+	payload, err := json.MarshalIndent(persistent{Accounts: list, Concurrency: p.Concurrency()}, "", "  ")
 	if err != nil {
 		return err
 	}
