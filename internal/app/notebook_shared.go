@@ -56,6 +56,17 @@ func (s *notebookSharedSessions) Open(ctx context.Context, accountID string) (no
 		return nil, errors.New("Start Playground service before using a shared Notebook browser")
 	}
 	workers := tracked.workers
+	workers.mu.RLock()
+	acc := workers.accounts[accountID]
+	workers.mu.RUnlock()
+	if acc == nil {
+		return nil, fmt.Errorf("Playground account %q not available", accountID)
+	}
+	if workers.residentWorker(accountID) == nil {
+		if _, err := workers.Worker(ctx, accountID, ""); err != nil {
+			return nil, fmt.Errorf("start Playground worker for shared Notebook: %w", err)
+		}
+	}
 	// Count Notebook work as activity of this Playground browser, so its
 	// worker cannot be selected as an idle eviction victim mid-request.
 	// This is not an AI Studio model lease and does not spend WAA quota.
@@ -69,17 +80,6 @@ func (s *notebookSharedSessions) Open(ctx context.Context, accountID string) (no
 			releaseActivity()
 		}
 	}()
-	workers.mu.RLock()
-	acc := workers.accounts[accountID]
-	workers.mu.RUnlock()
-	if acc == nil {
-		return nil, fmt.Errorf("Playground account %q not available", accountID)
-	}
-	if workers.residentWorker(accountID) == nil {
-		if _, err := workers.Worker(ctx, accountID, ""); err != nil {
-			return nil, fmt.Errorf("start Playground worker for shared Notebook: %w", err)
-		}
-	}
 	// Block resets and idle eviction while the borrowed tab is active.
 	// AI Studio requests may still use the existing worker concurrently.
 	acc.startupMu.Lock()

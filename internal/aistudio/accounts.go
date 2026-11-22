@@ -1288,7 +1288,7 @@ func (p *AccountPool) AcquireAccount(ctx context.Context, accountID string) (*Ac
 			p.mu.Unlock()
 			return nil, fmt.Errorf("%w: %s", ErrAccountNotFound, accountID)
 		}
-		if !account.exclusive && account.authRefreshers == 0 && account.active == 0 {
+		if !account.exclusive && account.authRefreshers == 0 && account.active == 0 && account.browserOperations == 0 {
 			checkedAt := time.Now().UTC()
 			leaseLock, err := acquireAccountFileLease(account.StoragePath)
 			if err == nil {

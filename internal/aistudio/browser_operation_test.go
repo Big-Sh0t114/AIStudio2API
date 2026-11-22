@@ -1,6 +1,7 @@
 package aistudio
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -22,6 +23,13 @@ func TestNotebookBrowserOperationCountsAsPlaygroundActivity(t *testing.T) {
 	}
 	if _, err := pool.Remove("shared-google-account", nil); !errors.Is(err, ErrAccountLeased) {
 		t.Fatalf("removed account during Notebook activity: %v", err)
+	}
+	// Exclusive Playground operations and worker recycling must not take over
+	// the same account while a Notebook page lease remains active.
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	if _, err := pool.AcquireAccount(ctx, "shared-google-account"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("acquired exclusive account while Notebook active: %v", err)
 	}
 	done()
 	done() // duplicate Close/release must not underflow activity count
