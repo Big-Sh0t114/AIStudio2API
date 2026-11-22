@@ -10,7 +10,7 @@ import(
  "strings"
  "time"
 )
-var opts=[]any{2,nil,nil,nil,nil,nil,nil,nil,nil,nil,[]any{1}}
+var opts=[]any{2,nil,nil,[]any{1,nil,nil,nil,nil,nil,nil,nil,nil,nil,[]any{1}}}
 const chatPath="/_/LabsTailwindUi/data/google.internal.labs.tailwind.orchestration.v1.LabsTailwindOrchestrationService/GenerateFreeFormStreamed"
 const requestJS=`(async function(a) {
  const W=window.WIZ_global_data||{};
