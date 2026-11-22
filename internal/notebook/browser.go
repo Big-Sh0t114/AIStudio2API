@@ -36,7 +36,17 @@ func(b *browser)ping(port int)bool{
  if port<1||port>65535{return false}
  c:=http.Client{Timeout:800*time.Millisecond};r,e:=c.Get(fmt.Sprintf("http://127.0.0.1:%d/json/version",port));if e!=nil{return false};defer r.Body.Close();return r.StatusCode==200
 }
+// resolveProfile converts the profile directory to an absolute path before
+// launching Chrome. Recent Chrome versions reject a relative --user-data-dir.
+func (b *browser) resolveProfile() error {
+ if strings.TrimSpace(b.profile)=="" {return errors.New("Notebook Chrome profile directory is empty")}
+ absolute,err:=filepath.Abs(b.profile)
+ if err!=nil{return fmt.Errorf("resolve Notebook Chrome profile directory: %w",err)}
+ b.profile=filepath.Clean(absolute)
+ return nil
+}
 func(b *browser)start(ctx context.Context,show bool)error{
+ if err:=b.resolveProfile();err!=nil{return err}
  if b.ping(b.port){return nil}
  if port:=b.activePort();b.ping(port){b.port=port;return nil}
  path,err:=chromePath();if err!=nil{return err}
