@@ -321,23 +321,23 @@ type ModelAccess struct {
 
 // Account 表示一个稳定目录对应的 AI Studio 账户
 type Account struct {
-	ID                    string        `json:"id"`
-	Directory             string        `json:"-"`
-	ConfigPath            string        `json:"-"`
-	StoragePath           string        `json:"-"`
-	RuntimePath           string        `json:"-"`
-	Config                AccountConfig `json:"config"`
-	StorageState          StorageState  `json:"-"`
-	Models                []Model       `json:"models,omitempty"`
-	BenefitTier           BenefitTier   `json:"benefit_tier"`
-	State                 AccountState  `json:"state"`
-	LastUsed              time.Time     `json:"last_used,omitempty"`
-	runtime               accountRuntimeState
-	runtimeData           []byte
-	active                int
+	ID           string        `json:"id"`
+	Directory    string        `json:"-"`
+	ConfigPath   string        `json:"-"`
+	StoragePath  string        `json:"-"`
+	RuntimePath  string        `json:"-"`
+	Config       AccountConfig `json:"config"`
+	StorageState StorageState  `json:"-"`
+	Models       []Model       `json:"models,omitempty"`
+	BenefitTier  BenefitTier   `json:"benefit_tier"`
+	State        AccountState  `json:"state"`
+	LastUsed     time.Time     `json:"last_used,omitempty"`
+	runtime      accountRuntimeState
+	runtimeData  []byte
+	active       int
 	// browserOperations tracks Notebook operations using the shared browser
 	// without applying AI Studio's model quota or protected-request limits.
-	browserOperations int
+	browserOperations     int
 	exclusive             bool
 	exclusiveWaiters      int
 	authRefreshers        int
@@ -3029,13 +3029,13 @@ func (p *AccountPool) Status() []AccountStatus {
 			Message:     message,
 			Directory:   account.Directory,
 
-			Transition:       progress.operation,
-			TransitionStep:   progress.step,
-			TransitionIndex:  progress.index,
-			TransitionTotal:  progress.total,
-			TransitionSince:  progress.since,
-			CatalogError:     catalogError,
-			ActiveRequests:   account.active,
+			Transition:           progress.operation,
+			TransitionStep:       progress.step,
+			TransitionIndex:      progress.index,
+			TransitionTotal:      progress.total,
+			TransitionSince:      progress.since,
+			CatalogError:         catalogError,
+			ActiveRequests:       account.active,
 			CatalogSyncedAt:      account.catalogSyncedAt,
 			HiddenDiscovered:     account.hiddenDiscovered,
 			HiddenModels:         len(account.hiddenModels),

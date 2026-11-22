@@ -56,11 +56,11 @@ type Pool[T comparable] struct {
 }
 
 type slot[T comparable] struct {
-	page   T
-	busy   bool
-	freed  time.Time
-	epoch  uint64
-	timer  *time.Timer
+	page  T
+	busy  bool
+	freed time.Time
+	epoch uint64
+	timer *time.Timer
 }
 
 // Lease owns one page until Release or Discard. A lease must never be reused

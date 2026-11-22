@@ -13,7 +13,9 @@ func TestNotebookBrowserOperationCountsAsPlaygroundActivity(t *testing.T) {
 		t.Fatalf("new account unexpectedly active: busy=%v used=%v", busy, lastUsed)
 	}
 	done, err := pool.BeginBrowserOperation("shared-google-account")
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	busy, lastUsed = pool.Activity("shared-google-account")
 	if !busy || time.Since(lastUsed) > time.Minute {
 		t.Fatalf("Notebook operation not counted: busy=%v used=%v", busy, lastUsed)
