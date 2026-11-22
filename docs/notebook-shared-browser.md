@@ -1,9 +1,14 @@
 # Shared Playground/Notebook page lifecycle (experimental)
 
-The native Go integration uses **one Camoufox process per Playground account**
-for both AI Studio and Notebook. Notebook pages are background tabs of that
-process. The protocol adapters remain separate: WAA for Playground and
-NotebookLM's internal RPC for Notebook.
+The native Go integration supports two distinct existing Playground runtimes
+with the **same Google account**. Both preserve their existing worker's
+lifecycle and proxy; NotebookLM keeps separate RPC and quota handling.
+
+- **Camoufox:** use a background Notebook tab in the existing Firefox browser.
+- **SpiderMonkey:** reuse the Playground worker's native Go HTTP client,
+  synchronized Google cookies, proxy and user agent to call Notebook RPC
+  directly. SpiderMonkey is a WAA JavaScript VM, not a tab-capable browser.
+  No extra browser, Chrome profile or Notebook tab is required.
 
 ## Unified page management
 
@@ -26,16 +31,20 @@ NotebookLM's internal RPC for Notebook.
 ## Notebook lifecycle
 
 1. First request for a linked account borrows the existing Playground Worker.
-2. The shared page pool creates a background Notebook tab on demand.
-3. Subsequent requests reuse a checked-out Notebook tab if its origin is valid.
-4. At the end of the request, the page lease is released immediately.
-5. One Notebook tab per worker remains idle for up to **120 seconds**.
-6. On timeout, invalid origin, Worker replacement, or service shutdown, the
-   page is closed and cannot be reused.
-7. No Worker lifecycle or account startup lock is held while that tab is idle.
+2. For Camoufox, the shared page pool creates a background Notebook tab on
+   demand. Subsequent requests borrow the same tab when valid.
+3. Camoufox page leases are released after each request, and idle tabs close
+   after **120 seconds**. Worker shutdown clears the cache.
+4. For SpiderMonkey, the Notebook adapter fetches the Notebook bootstrap
+   over the existing authenticated Go HTTP transport, caches its transient
+   CSRF/page metadata for **2 minutes** in memory, and issues HTTP RPCs.
+   Google cookies remain owned and updated by the underlying Playground
+   worker. There is no Notebook page to destroy.
+5. Both paths release the shared worker lifecycle lease after the request.
+   No worker startup lock is held during Notebook idle time.
 
 The existing standalone Chrome Notebook mode remains available, but **no
-silent Chrome fallback** is performed for linked Camoufox accounts.
+silent Chrome fallback** is performed for linked accounts of either backend.
 
 ## Conversations and metadata
 
@@ -56,3 +65,19 @@ silent Chrome fallback** is performed for linked Camoufox accounts.
   latency/memory improvements still need end-to-end validation on Windows.
 - Worker pool capacity and separate service quotas remain controlled by
   their existing managers.
+
+## SpiderMonkey authentication limitations
+
+- Direct Notebook requests use `https://notebook.google.com/` and its
+  `/_/LabsTailwindUi/data/` RPC endpoints only. The adapter does not
+  execute arbitrary remote JavaScript or forward cookies to another origin.
+- If the saved Google account cookies do not authenticate Notebook, the
+  account returns `auth_required` instead of creating a new Chrome process.
+  This can happen when Google uses device-bound or service-specific login.
+- The Notebook page bootstrap is parsed from the actual HTML into short-lived
+  memory, never saved to `accounts.json` or exposed by the management API.
+- CSRF 403 errors invalidate the cached bootstrap and retry once; 429
+  continues to use the existing independent Notebook cooldown.
+- Real Google login and Notebook RPC compatibility remain to be tested on
+  a signed-in Windows installation. Passing CI does not establish upstream
+  functionality.

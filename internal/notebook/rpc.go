@@ -32,17 +32,25 @@ type browserResponse struct {
 }
 
 func (p *Provider) execute(ctx context.Context, a *account, rpcID string, params any, sourcePath, path string) (browserResponse, error) {
-	arg, _ := json.Marshal(map[string]any{"rpcid": rpcID, "params": params, "sourcePath": sourcePath, "path": path})
-	raw, err := a.browser.evaluate(ctx, requestJS+"("+string(arg)+")")
-	if err != nil {
-		return browserResponse{}, err
-	}
 	var result browserResponse
-	if err = json.Unmarshal(raw, &result); err != nil {
-		return result, err
+	if page, direct := a.browser.shared.(HTTPPage); direct {
+		var err error
+		result, err = a.browser.executeHTTP(ctx, page, rpcID, params, sourcePath, path)
+		if err != nil {
+			return result, err
+		}
+	} else {
+		arg, _ := json.Marshal(map[string]any{"rpcid": rpcID, "params": params, "sourcePath": sourcePath, "path": path})
+		raw, err := a.browser.evaluate(ctx, requestJS+"("+string(arg)+")")
+		if err != nil {
+			return browserResponse{}, err
+		}
+		if err = json.Unmarshal(raw, &result); err != nil {
+			return result, err
+		}
 	}
-	if result.SignedOut {
-		return result, &APIError{Status: 401, Code: "auth_required", Message: "Notebook sign-in expired; reconnect account"}
+	if result.SignedOut || result.Status == 401 {
+		return result, &APIError{Status: 401, Code: "auth_required", Message: "Notebook sign-in expired; reconnect the linked Google account"}
 	}
 	if result.Status == 429 {
 		return result, &APIError{Status: 429, Code: "rate_limit_exceeded", Message: "Notebook HTTP 429", RetryAt: time.Now().Add(10 * time.Minute)}

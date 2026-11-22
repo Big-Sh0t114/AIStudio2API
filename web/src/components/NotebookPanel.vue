@@ -71,7 +71,7 @@ async function add() {
     label.value = ''
     await call(`/api/notebook/accounts/${encodeURIComponent(x.account.id)}/login`, 'POST')
     notice.value = sourceAccountID.value
-      ? '已使用 Playground Camoufox 的独立标签页读取 Notebook，无需额外 Chrome。'
+      ? '已复用 Playground 账号会话读取 Notebook，无需额外 Chrome（支持 Camoufox / SpiderMonkey）。'
       : '已打开 Chrome，完成 Google 登录后刷新账号状态。'
     await refresh()
   } catch (e) {
@@ -90,7 +90,7 @@ async function action(a: Account, task: 'login' | 'refresh' | 'delete') {
     await call(url + (task === 'delete' ? '' : `/${task}`), task === 'delete' ? 'DELETE' : 'POST')
     if (task === 'login')
       notice.value = a.source_account_id
-        ? '已借用 Playground Camoufox 标签页刷新认证，不会启动 Chrome。'
+        ? '正在复用 Playground 会话刷新 Notebook 认证，不会启动 Chrome。'
         : 'Chrome 登录窗口已打开，完成登录后点击刷新状态。'
     await refresh()
   } catch (e) {
@@ -112,7 +112,7 @@ onActivated(refresh)
         <p class="text-xs text-gray-400">
           {{
             props.mode === 'accounts'
-              ? '可复用 Playground 浏览器 · Notebook 模型 · 独立冷却'
+              ? '复用 Playground 账号 · Camoufox / SpiderMonkey · Notebook 独立冷却'
               : 'Notebook 专用额度（不计入 AI Studio Token 数据）'
           }}
         </p>
@@ -163,7 +163,7 @@ onActivated(refresh)
             <div class="text-sm font-medium text-white">{{ a.label }} · {{ a.plan }}</div>
             <div class="break-all text-xs text-gray-400">{{ a.email || a.id }}</div>
             <div v-if="a.source_account_id" class="text-xs text-blue-400">
-              共享 Playground Camoufox · 标签页空闲 120 秒后回收
+              共享 Playground 账号（Camoufox 标签页保活 120 秒 / SpiderMonkey 原生 HTTP）
             </div>
           </div>
           <span class="text-xs text-gray-400">{{ a.state }}</span>
