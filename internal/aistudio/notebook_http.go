@@ -11,7 +11,7 @@ import (
 )
 
 const notebookHTTPMaxResponseBytes = 32 << 20
-const notebookHTTPMaxRedirects = 5
+const notebookHTTPMaxRedirects = 10
 
 // ErrNotebookAuthentication indicates that the linked Playground cookies do
 // not authenticate a NotebookLM request. A separate Chrome browser must NOT
@@ -19,9 +19,10 @@ const notebookHTTPMaxRedirects = 5
 var ErrNotebookAuthentication = errors.New("NotebookLM requires Google authentication with the linked Playground account")
 var ErrNotebookRedirect = errors.New("NotebookLM returned an unsupported redirect")
 
-// notebookRedirectTarget resolves only same-origin redirects. It never sends
-// Google login credentials to a different host: SpiderMonkey's shared HTTP
-// client has automatic redirect following disabled deliberately.
+// notebookRedirectTarget accepts only HTTPS redirects between NotebookLM and
+// Google's first-party account-login host. The shared SpiderMonkey HTTP client
+// keeps automatic redirects disabled; each hop gets fresh host-scoped cookies
+// from the existing session jar, never a forwarded Cookie header.
 func notebookRedirectTarget(current *url.URL, location string) (*url.URL, error) {
 	if strings.TrimSpace(location) == "" {
 		return nil, fmt.Errorf("%w: missing Location header", ErrNotebookRedirect)
@@ -33,13 +34,12 @@ func notebookRedirectTarget(current *url.URL, location string) (*url.URL, error)
 	if next.Scheme != "https" || next.User != nil || next.Fragment != "" {
 		return nil, fmt.Errorf("%w: invalid redirect scheme or credentials", ErrNotebookRedirect)
 	}
-	if next.Host == "accounts.google.com" {
-		return nil, ErrNotebookAuthentication
+	switch next.Host {
+	case "notebook.google.com", "accounts.google.com":
+		return next, nil
+	default:
+		return nil, fmt.Errorf("%w: destination outside NotebookLM / Google account login (%s)", ErrNotebookRedirect, next.Hostname())
 	}
-	if next.Host != "notebook.google.com" {
-		return nil, fmt.Errorf("%w: destination outside NotebookLM (%s)", ErrNotebookRedirect, next.Hostname())
-	}
-	return next, nil
 }
 
 // UsesSpiderMonkey reports whether the active worker is the native Go HTTP +
@@ -91,16 +91,20 @@ func (worker *NativeWorker) NotebookHTTP(ctx context.Context, method, rawURL str
 		requestHeaders.Set("Sec-Fetch-Mode", "cors")
 		requestHeaders.Set("Sec-Fetch-Dest", "empty")
 	}
-	// SpiderMonkey intentionally sets CheckRedirect=ErrUseLastResponse.
-	// Handle the small set of legitimate Notebook same-origin GET redirects
-	// explicitly, so the protected Playground transport stays unchanged.
+	// SpiderMonkey intentionally sets CheckRedirect=ErrUseLastResponse. A
+	// Notebook bootstrap can legitimately pass through accounts.google.com
+	// for a SetOSID/cookie-rotation handshake before returning to Notebook.
+	// We follow only trusted GET hops, using runtime.do for each destination
+	// so CookieHeader selects domain-specific cookies and Set-Cookie is merged.
+	// The Playground WAA client and its redirect policy remain unchanged.
 	for redirects := 0; ; redirects++ {
 		response, err := runtime.do(ctx, method, rawURL, body, requestHeaders)
 		if err != nil {
 			return 0, nil, fmt.Errorf("Notebook HTTP request: %w", err)
 		}
 		if response.Request == nil || response.Request.URL == nil ||
-			response.Request.URL.Scheme != "https" || response.Request.URL.Host != "notebook.google.com" {
+			response.Request.URL.Scheme != "https" ||
+			(response.Request.URL.Host != "notebook.google.com" && response.Request.URL.Host != "accounts.google.com") {
 			_ = response.Body.Close()
 			return 0, nil, ErrNotebookRedirect
 		}
@@ -114,13 +118,22 @@ func (worker *NativeWorker) NotebookHTTP(ctx context.Context, method, rawURL str
 				return 0, nil, err
 			}
 			if method != http.MethodGet {
+				if next.Host == "accounts.google.com" {
+					return 0, nil, ErrNotebookAuthentication
+				}
 				return 0, nil, fmt.Errorf("%w: Notebook RPC returned HTTP %d", ErrNotebookRedirect, response.StatusCode)
 			}
 			if redirects >= notebookHTTPMaxRedirects {
-				return 0, nil, fmt.Errorf("%w: exceeded %d same-origin hops", ErrNotebookRedirect, notebookHTTPMaxRedirects)
+				return 0, nil, fmt.Errorf("%w: exceeded %d trusted GET hops", ErrNotebookRedirect, notebookHTTPMaxRedirects)
 			}
 			rawURL = next.String()
 			continue
+		}
+		if response.Request.URL.Host == "accounts.google.com" {
+			// Google stopped on a sign-in form, challenge or error instead
+			// of completing the cookie rotation and returning to Notebook.
+			_ = response.Body.Close()
+			return 0, nil, ErrNotebookAuthentication
 		}
 		content, err := io.ReadAll(io.LimitReader(response.Body, notebookHTTPMaxResponseBytes+1))
 		closeErr := response.Body.Close()
