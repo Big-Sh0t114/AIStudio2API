@@ -17,13 +17,13 @@ func (fn notebookRedirectRoundTrip) RoundTrip(r *http.Request) (*http.Response, 
 func notebookRedirectWorker(transport http.RoundTripper) *NativeWorker {
 	runtime := &goWAARuntime{
 		client: &http.Client{
-			Transport: transport,
+			Transport:     transport,
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
 		session: &sessionCookies{state: StorageState{
 			Cookies: []StateCookie{{Name: "SID", Value: "test-cookie", Domain: ".google.com", Path: "/", Secure: true, Expires: -1}},
 		}},
-		userAgent: "test-notebook-agent",
+		userAgent:      "test-notebook-agent",
 		acceptLanguage: "en",
 	}
 	return &NativeWorker{runtime: runtime}
@@ -31,7 +31,9 @@ func notebookRedirectWorker(transport http.RoundTripper) *NativeWorker {
 
 func notebookHTTPResponse(request *http.Request, status int, location, body string) *http.Response {
 	headers := make(http.Header)
-	if location != "" { headers.Set("Location", location) }
+	if location != "" {
+		headers.Set("Location", location)
+	}
 	return &http.Response{
 		StatusCode: status, Header: headers, Body: io.NopCloser(strings.NewReader(body)),
 		Request: request,
@@ -49,13 +51,15 @@ func TestNotebookRedirectSameOriginAndCookieReuse(t *testing.T) {
 			t.Fatalf("missing worker user agent")
 		}
 		switch r.URL.Path {
-		case "/": return notebookHTTPResponse(r, 302, "/u/0/", ""), nil
+		case "/":
+			return notebookHTTPResponse(r, 302, "/u/0/", ""), nil
 		case "/u/0/":
 			if r.URL.RawQuery == "" {
 				return notebookHTTPResponse(r, 302, "https://notebook.google.com/u/0/?hl=en", ""), nil
 			}
 			return notebookHTTPResponse(r, 200, "", "authenticated notebook page"), nil
-		default: return notebookHTTPResponse(r, 200, "", "authenticated notebook page"), nil
+		default:
+			return notebookHTTPResponse(r, 200, "", "authenticated notebook page"), nil
 		}
 	}))
 	status, body, err := worker.NotebookHTTP(context.Background(), "GET", "https://notebook.google.com/", nil, nil)
@@ -80,7 +84,9 @@ func TestNotebookRedirectToGoogleLoginIsAuthError(t *testing.T) {
 	if !errors.Is(err, ErrNotebookAuthentication) {
 		t.Fatalf("login redirect not classified: %v", err)
 	}
-	if calls != 1 { t.Fatalf("cross-origin HTTP request attempted: %d", calls) }
+	if calls != 1 {
+		t.Fatalf("cross-origin HTTP request attempted: %d", calls)
+	}
 }
 
 func TestNotebookRedirectRefusesOtherHostAndInvalidSchemes(t *testing.T) {
@@ -114,7 +120,9 @@ func TestNotebookRPCDoesNotFollowRedirect(t *testing.T) {
 	calls := 0
 	worker := notebookRedirectWorker(notebookRedirectRoundTrip(func(r *http.Request) (*http.Response, error) {
 		calls++
-		if r.Method != http.MethodPost { t.Fatalf("unexpected method %s", r.Method) }
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method %s", r.Method)
+		}
 		return notebookHTTPResponse(r, 302, "/u/0/", ""), nil
 	}))
 	_, _, err := worker.NotebookHTTP(context.Background(), "POST", "https://notebook.google.com/_/LabsTailwindUi/data/batchexecute", nil, []byte("f.req=..."))
