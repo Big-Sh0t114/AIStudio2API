@@ -12,8 +12,9 @@ import (
 type sourceFreeSessions struct {
 	mu          sync.Mutex
 	sourceRows  []any
-	rejectChat  bool
-	chatCalls   int
+	rejectChat     bool
+	chatHTTPStatus int
+	chatCalls      int
 	sourceCalls int
 	sourceArg   any
 }
@@ -55,6 +56,12 @@ func (p sourceFreePage) Evaluate(_ context.Context, expression string) (json.Raw
 			return nil, errors.New("chat params too short")
 		}
 		p.owner.sourceArg = req.Params[0]
+		if p.owner.chatHTTPStatus != 0 {
+			status := p.owner.chatHTTPStatus
+			p.owner.mu.Unlock()
+			result, _ := json.Marshal(browserResponse{Status: status, Text: "upstream rejected"})
+			return result, nil
+		}
 		if p.owner.rejectChat {
 			frame = []any{"wrb.fr", "", nil, nil, nil, []any{3, "missing sources"}}
 		} else {
@@ -156,5 +163,18 @@ func TestGroundedNotebookStillForwardsReadySourceIDs(t *testing.T) {
 	ids, ok := s.sourceArg.([]any)
 	if !ok || len(ids) != 1 || str(at(ids[0], 0, 0)) != "valid-id" {
 		t.Fatalf("grounded source ID changed: %#v", s.sourceArg)
+	}
+}
+
+func TestEmptyNotebookHTTP400ReportsAgentProtocolGap(t *testing.T) {
+	s := &sourceFreeSessions{sourceRows: []any{}, chatHTTPStatus: 400}
+	p, a := newSourceFreeProvider(t, s)
+	_, err := p.Chat(context.Background(), "notebook:"+a.ID+":nb-empty", []Message{{Role: "user", Content: "Hello"}})
+	var api *APIError
+	if !errors.As(err, &api) || api.Code != "source_free_chat_unavailable" || api.Status != 502 {
+		t.Fatalf("HTTP 400 must be classified as unsupported no-source protocol: %v", err)
+	}
+	if s.chatCalls != 1 {
+		t.Fatalf("unexpected source-free request count: %d", s.chatCalls)
 	}
 }
