@@ -25,6 +25,8 @@ type tokenCache struct {
 }
 
 type authFile struct {
+    ManagedBy string `json:"managed_by,omitempty"`
+    TokenType string `json:"token_type,omitempty"`
     AccessToken string `json:"access_token"`
     RefreshToken string `json:"refresh_token"`
     ExpiryDate int64 `json:"expiry_date"`
