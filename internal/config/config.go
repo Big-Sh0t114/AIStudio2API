@@ -29,6 +29,11 @@ const (
 )
 
 var configKeys = [...]string{
+    "ANTIGRAVITY_OAUTH_FILE",
+    "ANTIGRAVITY_OAUTH_CLIENT_ID",
+    "ANTIGRAVITY_OAUTH_CLIENT_SECRET",
+    "ANTIGRAVITY_PROJECT_ID",
+    "ANTIGRAVITY_MODELS",
 	"AISTUDIO_AUTH_STATES",
 	"LISTEN_ADDR",
 	"PREVIEW_LISTEN_ADDR",
@@ -127,6 +132,11 @@ const DefaultContinuationPrompt = "Continue the assistant response after the fol
 
 // Config 保存服务的全局配置
 type Config struct {
+    AntigravityOAuthFile string
+    AntigravityOAuthClientID string
+    AntigravityOAuthClientSecret string
+    AntigravityProjectID string
+    AntigravityModels string
 	AutoStart              bool
 	HideDockIcon           bool
 	RequestBodyLog         bool
@@ -231,7 +241,7 @@ type InvalidValue struct {
 }
 
 // secretKeys 是取值可能含凭据的配置键，无效时不记录原值
-var secretKeys = []string{"PROXY", "PROXY_API_KEY", "API_KEY_ACCOUNTS", "ADMIN_PASSWORD"}
+var secretKeys = []string{"PROXY", "PROXY_API_KEY", "API_KEY_ACCOUNTS", "ADMIN_PASSWORD", "ANTIGRAVITY_OAUTH_CLIENT_SECRET"}
 
 // invalidValue 返回无效配置项的记录，凭据键不带原值
 func invalidValue(key, value string, err error) InvalidValue {
@@ -243,6 +253,11 @@ func invalidValue(key, value string, err error) InvalidValue {
 
 // configSetters 把每个配置键的文本值解析到 Config
 var configSetters = map[string]func(*Config, string) error{
+    "ANTIGRAVITY_OAUTH_FILE": textSetter(func(c *Config)*string{return &c.AntigravityOAuthFile},strings.TrimSpace),
+    "ANTIGRAVITY_OAUTH_CLIENT_ID": textSetter(func(c *Config)*string{return &c.AntigravityOAuthClientID},strings.TrimSpace),
+    "ANTIGRAVITY_OAUTH_CLIENT_SECRET": textSetter(func(c *Config)*string{return &c.AntigravityOAuthClientSecret},strings.TrimSpace),
+    "ANTIGRAVITY_PROJECT_ID": textSetter(func(c *Config)*string{return &c.AntigravityProjectID},strings.TrimSpace),
+    "ANTIGRAVITY_MODELS": textSetter(func(c *Config)*string{return &c.AntigravityModels},strings.TrimSpace),
 	"AUTO_START":               boolSetter("AUTO_START", func(c *Config) *bool { return &c.AutoStart }),
 	"HIDE_DOCK_ICON":           boolSetter("HIDE_DOCK_ICON", func(c *Config) *bool { return &c.HideDockIcon }),
 	"REQUEST_BODY_LOG":         boolSetter("REQUEST_BODY_LOG", func(c *Config) *bool { return &c.RequestBodyLog }),
