@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Mag1cFall/AIStudio2API/internal/aistudio"
+    "github.com/Mag1cFall/AIStudio2API/internal/bridge"
 	"github.com/Mag1cFall/AIStudio2API/internal/notebook"
 )
 
@@ -20,6 +21,8 @@ type Config struct {
 	PickPath           func(start string) (string, error)
 	APIKey             string
 	Notebook           *notebook.Provider
+    Bridge             *bridge.Provider
+    BridgeAuthorized   func(context.Context, string, string) bool
 	NotebookAuthorized func(key, email string) bool
 	Admin              AdminService
 	AdminAuthEnabled   bool
@@ -87,8 +90,8 @@ func NewHandler(service aistudio.Service, config Config) http.Handler {
 		}
 	}
 	public := http.NewServeMux()
-	public.HandleFunc("GET /v1/models", geminiOr(s.handleGeminiModels, s.handleNotebookOrModels))
-	public.HandleFunc("GET /v1/models/{model...}", geminiOr(s.handleGeminiModel, s.handleNotebookOrModel))
+	public.HandleFunc("GET /v1/models", geminiOr(s.handleGeminiModels, s.handleBridgeOrModels))
+	public.HandleFunc("GET /v1/models/{model...}", geminiOr(s.handleGeminiModel, s.handleBridgeOrModel))
 	public.HandleFunc("POST /v1/models/{action}", s.handleGeminiAction)
 	public.HandleFunc("GET /v1/operations/{operation}", s.handleGeminiVideoOperation)
 	public.HandleFunc("POST /upload/v1/files", s.handleGeminiFileUpload)
@@ -97,7 +100,7 @@ func NewHandler(service aistudio.Service, config Config) http.Handler {
 	public.HandleFunc("GET /v1/cachedContents/{cache}", s.handleGeminiCacheGet)
 	public.HandleFunc("PATCH /v1/cachedContents/{cache}", s.handleGeminiCacheUpdate)
 	public.HandleFunc("DELETE /v1/cachedContents/{cache}", s.handleGeminiCacheDelete)
-	public.HandleFunc("POST /v1/chat/completions", s.handleNotebookOrChat)
+	public.HandleFunc("POST /v1/chat/completions", s.handleBridgeOrNotebookChat)
 	public.HandleFunc("POST /v1/embeddings", s.handleOpenAIEmbeddings)
 	public.HandleFunc("POST /v1/responses", s.handleResponses)
 	public.HandleFunc("POST /v1/responses/input_tokens", s.handleResponsesInputTokens)
@@ -209,6 +212,14 @@ func waitLaunchMiddleware(wait func(context.Context), catalogRead func(*http.Req
 
 // catalogRead 判断请求是否为已发布的公开目录能回答的模型查询：目录非空时的模型列表，或目录中已有该模型的单模型查询
 func (s *server) catalogRead(r *http.Request) bool {
+    if s.config.Bridge != nil {
+        if r.Method == http.MethodGet && (r.URL.Path == "/v1/models" || strings.HasPrefix(r.URL.Path, "/v1/models/antigravity:") || strings.HasPrefix(r.URL.Path, "/v1/models/gemini-web:")) {
+            return true
+        }
+        if r.Method == http.MethodPost && r.URL.Path == "/v1/chat/completions" && bridgeModelInBody(r) {
+            return true
+        }
+    }
 	if s.config.Notebook != nil {
 		if r.Method == http.MethodGet && (r.URL.Path == "/v1/models" || strings.HasPrefix(r.URL.Path, "/v1/models/notebook:")) {
 			return true
