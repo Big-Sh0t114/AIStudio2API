@@ -40,7 +40,7 @@ func TestWebModelSourceAcceptsEmailButRejectsPath(t *testing.T){
 }
 func TestJSPBHeaderIncludesModelHash(t *testing.T) {
  b:=webBootstrap{Language:"en",BL:"boq_test"}
- encoded:=webModelHeader(webModel{Hash:"hash-custom",Mode:5},b)
+ encoded:=webModelHeader(webModel{Hash:"hash-custom",Mode:5},b,2)
  if !bytes.Contains(encoded,[]byte("hash-custom")) {t.Fatal("model hash missing")}
 }
 func TestImportedCredentialsCannotBeOverwritten(t *testing.T) {
@@ -61,4 +61,12 @@ func TestStartOAuthRequiresExplicitCredentials(t *testing.T) {
 func TestPromptRoleFlattening(t *testing.T){
  text,err:=safeText([]Message{{Role:"system",Content:"Instruction"},{Role:"user",Content:"Question"}})
  if err!=nil||!strings.Contains(text,"[USER]\nQuestion"){t.Fatalf("prompt=%q err=%v",text,err)}
+}
+
+func TestGeminiWebThinkingHeaderMatchesOfficialEnum(t *testing.T) {
+ b:=webBootstrap{Language:"en",BL:"boq_test",ClientID:"client-1"}
+ header:=webModelHeader(webModel{Hash:"model-hash",Mode:5},b,4)
+ if !bytes.Contains(header,[]byte("model-hash")) {t.Fatal("missing model hash")}
+ payload:=webGeneratePayload(webModel{Mode:5},b,"rid","cid",4)
+ if got:=payload[80];got!=4{t.Fatalf("thinking level=%v",got)}
 }
