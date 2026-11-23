@@ -64,7 +64,7 @@ func fail(status int,code,msg string) error { return &Error{Status:status,Code:c
 func validSourceID(value string) bool {
     if value=="" || len(value)>120 { return false }
     for _, c := range value {
-        if !(c>='a'&&c<='z'||c>='A'&&c<='Z'||c>='0'&&c<='9'||c=='-'||c=='_') { return false }
+        if !(c>='a'&&c<='z'||c>='A'&&c<='Z'||c>='0'&&c<='9'||c=='-'||c=='_'||c=='@'||c=='.'||c=='+') { return false }
     }
     return true
 }
