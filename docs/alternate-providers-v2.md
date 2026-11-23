@@ -57,3 +57,17 @@ The API returns explicit errors for unsupported tools and multimodal requests. T
 5. Security review of admin OAuth authentication and per-key account restrictions.
 
 This is a draft integration, not a verified production proxy.
+
+## Branch validation and Windows build
+
+The branch contains `.github/workflows/alternate-validate.yml`. On a normal developer push to `feat/report-antigravity-gemini-web-v2`, it is configured to run alternate unit tests, compile all internal packages with frontend assets, and cross-compile a Windows desktop EXE. The EXE is uploaded as the `aistudio2api-alternate-windows-amd64` workflow artifact only after the checks succeed.
+
+If GitHub Actions does not start after connector-authored commits, an authorized developer can create a normal push from a local checkout of this feature branch, without merging it:
+
+```bash
+git checkout feat/report-antigravity-gemini-web-v2
+git commit --allow-empty -m "ci: trigger alternate validation"
+git push origin feat/report-antigravity-gemini-web-v2
+```
+
+A workflow file being present is **not** evidence that checks have run or an executable has been built. Review the workflow logs and test real Google sessions before marking PR #16 ready for review.
