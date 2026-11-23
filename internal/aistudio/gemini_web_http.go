@@ -36,14 +36,18 @@ func (worker *NativeWorker) GeminiWebHTTP(ctx context.Context,method,target stri
  if method!="GET"&&method!="POST"{return 0,nil,nil,errors.New("Unsupported method")}
  h:=headers.Clone();if h==nil{h=make(http.Header)}
  h.Set("Accept-Encoding","identity")
- h.Set("Origin","https://gemini.google.com")
- h.Set("Referer","https://gemini.google.com/")
- h.Set("Sec-Fetch-Mode","cors")
- h.Set("Sec-Fetch-Dest","empty")
- if parsed.Host=="gemini.google.com" {
-  h.Set("Sec-Fetch-Site","same-origin")
+ if method=="GET"&&parsed.Host=="gemini.google.com" {
+  h.Del("Origin")
+  h.Set("Sec-Fetch-Mode","navigate")
+  h.Set("Sec-Fetch-Site","none")
+  h.Set("Sec-Fetch-Dest","document")
+  h.Set("Sec-Fetch-User","?1")
  }else{
-  h.Set("Sec-Fetch-Site","same-site")
+  h.Set("Origin","https://gemini.google.com")
+  h.Set("Referer","https://gemini.google.com/")
+  h.Set("Sec-Fetch-Mode","cors")
+  h.Set("Sec-Fetch-Dest","empty")
+  if parsed.Host=="gemini.google.com" {h.Set("Sec-Fetch-Site","same-origin")}else{h.Set("Sec-Fetch-Site","same-site")}
  }
  resp,err:=runtime.do(ctx,method,target,body,h)
  if err!=nil{return 0,nil,nil,fmt.Errorf("Gemini Web HTTP request: %w",err)}
