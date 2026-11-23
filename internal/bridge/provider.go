@@ -48,10 +48,15 @@ type Provider struct {
 
 func New(cfg Config) (*Provider, error) {
     transport := http.DefaultTransport.(*http.Transport).Clone()
-    if strings.TrimSpace(cfg.Proxy) != "" {
-        parsed, err := url.Parse(cfg.Proxy)
-        if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https" && parsed.Scheme != "socks5") {
-            return nil, fmt.Errorf("bridge: invalid proxy URL")
+    if raw := strings.TrimSpace(cfg.Proxy); raw != "" {
+        // The parent gateway supports comma-separated proxy pools. Borrow the
+        // first configured egress for this optional standalone OAuth path.
+        // Gemini Web instead uses its own Playground worker's selected egress.
+        first := strings.TrimSpace(strings.Split(raw, ",")[0])
+        parsed, err := url.Parse(first)
+        if err != nil || parsed.Host == "" ||
+            (parsed.Scheme != "http" && parsed.Scheme != "https" && parsed.Scheme != "socks5") {
+            return nil, fmt.Errorf("bridge: invalid first proxy URL")
         }
         transport.Proxy = http.ProxyURL(parsed)
     }
