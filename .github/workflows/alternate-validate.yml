@@ -1,0 +1,57 @@
+name: Alternate providers (branch validation)
+
+on:
+  push:
+    branches:
+      - feat/report-antigravity-gemini-web-v2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  alternate-unit:
+    runs-on: ubuntu-24.04
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Format static check
+        run: |
+          files="$(git diff --name-only --diff-filter=ACMRT origin/main...HEAD -- '*.go' || true)"
+          [ -n "$files" ] || exit 0
+          echo "$files" | xargs gofmt -l
+      - name: Alternate provider package tests
+        run: go test -mod=readonly -count=1 -v ./internal/alternate
+      - name: Vet alternate provider package
+        run: go vet -mod=readonly ./internal/alternate
+  full-compile:
+    runs-on: ubuntu-24.04
+    env:
+      GOTOOLCHAIN: local
+      CGO_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.18.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build frontend for embed
+        working-directory: web
+        run: |
+          npm ci
+          npx vp build
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: ./.github/actions/static-libraries
+        with:
+          target: linux-amd64-gnu
+      - name: Compile all internal packages
+        run: go test -mod=readonly -run '^$' ./internal/...
