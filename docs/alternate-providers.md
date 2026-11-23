@@ -7,22 +7,47 @@ The original model routing remains unchanged.
 
 ## Antigravity OAuth / Cloud Code Assist
 
-Obtain a legitimate Antigravity OAuth credential file using the Antigravity
-client or an existing OAuth login utility (for example, CLIProxyAPI). Do not
-put OAuth access tokens or refresh tokens into a Git repository.
+You can complete Google consent through the gateway's authenticated
+management API, or import a legitimate Antigravity OAuth credential file
+from Antigravity / CLIProxyAPI. Do not commit access or refresh tokens.
+
+For interactive consent, configure a **new** file path and the matching OAuth
+client ID (and secret, if required). Set
+`ADMIN_AUTH_ENABLED=true` and an admin password before enabling
+the management endpoint on any interface reachable by other users.
+Restart the gateway, sign into its admin UI, then send:
+
+```http
+POST /api/bridge/antigravity/oauth/start
+```
+
+The management API responds with an `authorization_url`. Open it in your
+regular browser, approve the Google scopes, and the localhost callback at
+`http://localhost:51121/oauth-callback` exchanges the one-time code
+using PKCE. The flow lasts at most five minutes and stores credentials
+atomically in your configured file with owner-only permissions where
+supported. Register the exact redirect URI with the OAuth client.
+The callback only listens on 127.0.0.1. Remote deployments need a browser
+on the server or an intentionally configured SSH loopback tunnel.
+
+For safety the endpoint **will not overwrite** an imported credential file
+owned by another app; use a new path for gateway-managed logins.
 
 Set the following options in `.env`, then restart the gateway:
 
 ```ini
 ANTIGRAVITY_OAUTH_FILE=C:/Users/you/.cli-proxy-api/antigravity-account.json
-ANTIGRAVITY_OAUTH_CLIENT_ID=your-oauth-client-id
+ANTIGRAVITY_OAUTH_CLIENT_ID=your-authorized-oauth-client-id
 ANTIGRAVITY_OAUTH_CLIENT_SECRET=
 ANTIGRAVITY_PROJECT_ID=
 ANTIGRAVITY_MODELS=gemini-3.8-flash-high
 ```
 
-The client credentials must be those associated with the OAuth refresh token.
+The client credentials must match the OAuth refresh token's issuer.
 The client secret may be omitted for an OAuth client that doesn't require it.
+For imported files without a client ID field, configure the matching
+`ANTIGRAVITY_OAUTH_CLIENT_ID` explicitly; the proxy does not substitute a
+different application's OAuth identity.
 `ANTIGRAVITY_PROJECT_ID` may be left blank to try the upstream
 `loadCodeAssist` discovery RPC. The model list must be populated deliberately,
 because upstream model availability changes and no availability is assumed.
@@ -31,8 +56,9 @@ The bridge reads nested `token.access_token` and `token.refresh_token` files
 as well as flat JSON OAuth credentials. Access tokens are refreshed in memory
 through Google's token endpoint under a mutex. It does **not** alter an
 external credential file owned by another process, or start a browser.
-OAuth user consent/sign-in is handled by the original credential issuer.
-If the token is revoked, reauthenticate with that client and replace the file.
+For an imported credential file, authorization is handled by its original
+issuer. For a new gateway-owned file, use the admin OAuth start endpoint.
+If a token is revoked, authenticate again with the same client.
 
 Example:
 
@@ -87,3 +113,14 @@ feature.
 To test an account, call `GET /v1/models`, choose the namespaced model ID,
 then send a small text-only Chat Completion with your regular
 `Authorization: Bearer <PROXY_API_KEY>` header.
+
+## Credential and deployment safety
+
+OAuth consent does not bypass Google account permissions or Antigravity's
+service restrictions. The gateway does not store the user's Google password.
+Protect `ANTIGRAVITY_OAUTH_FILE`, do not expose the OAuth callback to
+untrusted remote networks, and use a reverse proxy with TLS plus gateway
+API-key authentication when accessing the API remotely.
+
+This experimental integration uses upstream private protocols. It should be
+verified with a real authorized account before relying on it in production.
