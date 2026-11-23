@@ -82,3 +82,31 @@ func TestMalformedOAuthFileCannotBeOverwritten(t *testing.T) {
   t.Fatalf("expected fail-closed OAuth file ownership, got %v",err)
  }
 }
+
+func TestGeminiPolicyVariantOverridesBaseModelHash(t *testing.T){
+ row:=make([]any,18)
+ row[0]="plain-model-hash"
+ row[1]="Argon"
+ row[11]="4 Argon"
+ row[17]=float64(5)
+ policyHeader:=make([]any,15)
+ policyHeader[1]=float64(5)
+ policyHeader[3]="special-variant-hash"
+ policyHeader[4]="Argon"
+ policyHeader[12]="4 Argon"
+ policyRow:=make([]any,4)
+ policyRow[0]=policyHeader
+ policyRow[3]=[]any{float64(1)}
+ policy:=make([]any,2)
+ policy[1]=[]any{policyRow}
+ payload:=make([]any,25)
+ payload[0]=float64(5)
+ payload[15]=[]any{row}
+ payload[24]=policy
+ models,err:=parseWebCatalog(payload)
+ if err!=nil{t.Fatal(err)}
+ if len(models)!=1 || models[0].Hash!="special-variant-hash" || models[0].Variant!="special-variant-hash" {
+  t.Fatalf("policy variant was not selected: %+v",models)
+ }
+ if !models[0].Default{t.Fatal("overridden default model lost default flag")}
+}
