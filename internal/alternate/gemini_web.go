@@ -217,7 +217,7 @@ func webGeneratePayload(m webModel,b webBootstrap,rid,cid string,level int) []an
  inner[79]=m.Mode
  if level!=0 {inner[80]=level}
  inner[91]=0
- inner[96]=1
+ if !m.Default {inner[96]=1}else{inner[96]=0}
  inner[98]=1
  return inner
 }
@@ -269,6 +269,11 @@ func webSend(ctx context.Context,page WebTransport,ch *channelState,messages ...
  res,err:=webChannelRequest(ctx,page,"POST",query,body.String());if err!=nil{return err}
  return checkStatus(res,"Gemini Web channel send")
 }
+func webTerminate(ctx context.Context,page WebTransport,ch *channelState) error {
+ query:="VER=8&gsessionid="+webQueryEscape(ch.gSession)+"&SID="+webQueryEscape(ch.sid)+"&RID="+strconv.Itoa(ch.rid)+"&TYPE=terminate&zx="+webZX()
+ _,err:=webChannelRequest(ctx,page,"POST",query,"")
+ return err
+}
 func webPoll(ctx context.Context,page WebTransport,ch *channelState) ([][]any,error) {
  query:="gsessionid="+webQueryEscape(ch.gSession)+"&VER=8&RID=rpc&SID="+webQueryEscape(ch.sid)+"&AID="+strconv.Itoa(ch.aid)+"&CI=0&TYPE=xmlhttp&zx="+webZX()+"&t=1"
  res,err:=webChannelRequest(ctx,page,"GET",query,"");if err!=nil{return nil,err}
@@ -284,7 +289,14 @@ func webPoll(ctx context.Context,page WebTransport,ch *channelState) ([][]any,er
    if len(item)<2{continue}
    var id int;_ =json.Unmarshal(item[0],&id);if id>ch.aid{ch.aid=id}
    var frame []any
-   if json.Unmarshal(item[1],&frame)==nil{frames=append(frames,frame)}
+   if err=json.Unmarshal(item[1],&frame);err==nil{
+    frames=append(frames,frame)
+    continue
+   }
+   var status map[string]json.RawMessage
+   if json.Unmarshal(item[1],&status)==nil && status["__sm__"]!=nil {
+    return nil,fail(502,"upstream_status","Gemini Web processSession returned an upstream status error")
+   }
   }
  }
  return frames,nil
@@ -341,6 +353,12 @@ func (w *Web) Chat(ctx context.Context,id string,messages []Message) (string,err
  if b.APIKey==""||b.ServerToken=="" {return "",fail(502,"invalid_bootstrap","Gemini Web processSession credentials missing")}
  requestID,contextID:=randomID(),randomID()
  ch,err:=webOpenChannel(ctx,page,*selected,b,requestID,thinkingLevel);if err!=nil{return "",err}
+ defer func(){
+  cleanupCtx,cancel:=context.WithTimeout(context.Background(),3*time.Second)
+  defer cancel()
+  _=webTerminate(cleanupCtx,page,&ch)
+ }()
+
  payload:=webGeneratePayload(*selected,b,requestID,contextID,thinkingLevel)
  msgA:=[]any{[]any{[]any{1,selected.Hash,b.Language,requestID},0,nil,nil,nil,nil,nil,[]any{nil,nil,nil,nil,[]any{payload,nil,nil,1}}}}
  msgB:=[]any{nil,[]any{1,nil,nil,nil,nil,nil,nil,nil,[]any{prompt}}}
