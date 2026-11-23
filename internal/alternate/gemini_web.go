@@ -205,7 +205,7 @@ func webGeneratePayload(m webModel,b webBootstrap,rid,cid string) []any {
 func webQueryEscape(value string)string {
  return strings.NewReplacer("+","%20","%21","!","%27","'","%28","(","%29",")","%2A","*").Replace(url.QueryEscape(value))
 }
-func webZX()string {return randomID()}
+func webZX()string {var b [12]byte;_,_=rand.Read(b[:]);return fmt.Sprintf("%x",b[:])}
 func webChannelRequest(ctx context.Context,page WebTransport,method,query,body string) (HTTPResponse,error) {
  head:=make(http.Header)
  head.Set("Accept","*/*")
@@ -216,11 +216,11 @@ func webChannelRequest(ctx context.Context,page WebTransport,method,query,body s
 }
 type channelState struct {gSession,sid string; rid,ofs,aid int}
 func webOpenChannel(ctx context.Context,page WebTransport,m webModel,b webBootstrap,requestID string) (channelState,error) {
- auth,err:=page.Authorization();if err!=nil{return channelState{},err}
+ auth,authUser,err:=page.Authorization();if err!=nil{return channelState{},err}
  encode:=base64.StdEncoding.EncodeToString
  headers:=strings.Join([]string{
   "Authorization:"+auth,
-  "X-Goog-AuthUser:0",
+  "X-Goog-AuthUser:"+strconv.Itoa(authUser),
   "X-Goog-Api-Key:"+b.APIKey,
   "X-Server-Token:"+b.ServerToken,
   "x-goog-ext-525001261-bin:"+encode(webModelHeader(m,b)),
