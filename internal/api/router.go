@@ -157,6 +157,7 @@ func NewHandler(service aistudio.Service, config Config) http.Handler {
 	control.HandleFunc("GET /api/status", s.handleStatus)
 	control.HandleFunc("GET /api/models", s.handleAdminModels)
 	control.HandleFunc("GET /api/notebook/sources", s.handleNotebookSources)
+    control.HandleFunc("POST /api/bridge/antigravity/oauth/start", s.handleAntigravityOAuthStart)
 	control.HandleFunc("GET /api/notebook/settings", s.handleNotebookSettings)
 	control.HandleFunc("PUT /api/notebook/settings", s.handleNotebookSettings)
 	control.HandleFunc("GET /api/notebook/accounts", s.handleNotebookAccounts)
