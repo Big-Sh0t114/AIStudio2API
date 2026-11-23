@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Mag1cFall/AIStudio2API/internal/api"
+    "github.com/Mag1cFall/AIStudio2API/internal/bridge"
 	"github.com/Mag1cFall/AIStudio2API/internal/config"
 	"github.com/Mag1cFall/AIStudio2API/internal/i18n"
 	"github.com/Mag1cFall/AIStudio2API/internal/notebook"
@@ -264,8 +265,22 @@ func runServer(ctx context.Context, cfg config.Config, manager *runtimeManager, 
 	}
 	manager.previewAddress = previewListener.Addr().String()
 	manager.settings.Store(requestSettingsOf(manager.currentConfig()))
-	notebookProvider := notebook.NewWithShared(filepath.Join("runtime", "notebook"), &notebookSharedSessions{manager: manager})
-	defer notebookProvider.Close()
+	sharedSessions := &notebookSharedSessions{manager: manager}
+    notebookProvider := notebook.NewWithShared(filepath.Join("runtime", "notebook"), sharedSessions)
+    defer notebookProvider.Close()
+    bridgeProvider, err := bridge.New(bridge.Config{
+        OAuthFile: cfg.AntigravityOAuthFile,
+        OAuthClientID: cfg.AntigravityOAuthClientID,
+        OAuthClientSecret: cfg.AntigravityOAuthClientSecret,
+        ProjectID: cfg.AntigravityProjectID,
+        AntigravityModels: strings.Split(cfg.AntigravityModels, ","),
+        Sources: sharedSessions, Proxy: cfg.Proxy,
+    })
+    if err != nil {
+        _ = listener.Close()
+        _ = previewListener.Close()
+        return false, fmt.Errorf("initialize optional bridges: %w", err)
+    }
 	apiHandler := api.NewHandler(manager, api.Config{
 		APIKey: cfg.ProxyAPIKey, Admin: manager, Ledger: manager.ledger, Prompts: manager.prompts, Updates: updater,
 		AdminAuthEnabled: cfg.AdminAuthEnabled, AdminUsername: cfg.AdminUsername, AdminPassword: cfg.AdminPassword,
@@ -273,7 +288,22 @@ func runServer(ctx context.Context, cfg config.Config, manager *runtimeManager, 
 		MediaDir:         filepath.Join("runtime", "media"), MediaLimit: mediaLimit, MediaLinks: manager.mediaLinks,
 		ResponseModes: manager.responseModes, WaitLaunch: manager.WaitLaunch,
 		SearchSettings: manager.searchSettings, EgressProxy: manager.egressProxy, States: manager.states,
-		PickPath: manager.pickPath, Notebook: notebookProvider,
+		PickPath: manager.pickPath, Notebook: notebookProvider, Bridge: bridgeProvider,
+        BridgeAuthorized: func(ctx context.Context, key, sourceID string) bool {
+            current := manager.currentConfig()
+            bound := apiKeyAccounts(current.ProxyAPIKey, current.APIKeyAccounts, current)
+            allowed, restricted := bound[key]
+            if !restricted { return true }
+            accounts, err := manager.Accounts(ctx)
+            if err != nil { return false }
+            for _, account := range accounts {
+                if account.ID != sourceID {continue}
+                for _, candidate := range allowed {
+                    if strings.EqualFold(candidate, account.ID) || strings.EqualFold(candidate, account.Label) {return true}
+                }
+            }
+            return false
+        },
 		NotebookAuthorized: func(key, email string) bool {
 			current := manager.currentConfig()
 			bound := apiKeyAccounts(current.ProxyAPIKey, current.APIKeyAccounts, current)
