@@ -4,6 +4,7 @@ import (
  "bytes"
  "context"
  "encoding/json"
+ "errors"
  "os"
  "path/filepath"
  "strings"
@@ -69,4 +70,15 @@ func TestGeminiWebThinkingHeaderMatchesOfficialEnum(t *testing.T) {
  if !bytes.Contains(header,[]byte("model-hash")) {t.Fatal("missing model hash")}
  payload:=webGeneratePayload(webModel{Mode:5},b,"rid","cid",4)
  if got:=payload[80];got!=4{t.Fatalf("thinking level=%v",got)}
+}
+
+func TestMalformedOAuthFileCannotBeOverwritten(t *testing.T) {
+ path:=filepath.Join(t.TempDir(),"antigravity.json")
+ if err:=os.WriteFile(path,[]byte("{malformed"),0600);err!=nil{t.Fatal(err)}
+ provider:=NewAntigravity(Config{OAuthFile:path,ClientID:"desktop-client",Lifecycle:context.Background()})
+ _,err:=provider.StartOAuth(context.Background())
+ var api *Error
+ if !errors.As(err,&api)||api.Code!="file_owned_by_other_app" {
+  t.Fatalf("expected fail-closed OAuth file ownership, got %v",err)
+ }
 }
