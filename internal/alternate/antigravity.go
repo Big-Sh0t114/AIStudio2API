@@ -90,6 +90,14 @@ func (p *Antigravity) read() (agCredentials,error) {
 func (p *Antigravity) save(c agCredentials) error {
  if c.ManagedBy!="aistudio2api" {return nil} // never overwrite imported credentials
  if err:=os.MkdirAll(filepath.Dir(p.file),0700);err!=nil{return err}
+ // Recheck ownership immediately before writing, including files created
+ // after the OAuth consent flow began.
+ if existing,err:=os.ReadFile(p.file);err==nil{
+  var previous agCredentials
+  if json.Unmarshal(existing,&previous)!=nil || previous.ManagedBy!="aistudio2api"{
+   return fail(409,"file_owned_by_other_app","Refusing to overwrite a credential file managed by another application")
+  }
+ }else if !errors.Is(err,os.ErrNotExist){return err}
  data,err:=json.MarshalIndent(c,"","  ");if err!=nil{return err}
  f,err:=os.CreateTemp(filepath.Dir(p.file),".ag-*.tmp");if err!=nil{return err}
  temp:=f.Name();defer os.Remove(temp)
