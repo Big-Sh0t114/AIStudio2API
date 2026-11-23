@@ -1,3 +1,6 @@
+
+> **可选实验代理：** 此分支新增 Antigravity OAuth 和 Gemini Web Chat 的 OpenAI 兼容接口。支持通过管理接口启动 Google PKCE 登录、OAuth Token 刷新，以及用 SpiderMonkey 复用 Playground 的 Gemini 网页会话。使用与限制详见 [Antigravity / Gemini Web 接入文档](docs/alternate-providers.md)。
+
 <div align="center">
 
 # AI Studio to OpenAI, Anthropic & Gemini Compatible API
