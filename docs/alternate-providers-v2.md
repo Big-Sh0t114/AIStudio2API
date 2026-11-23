@@ -29,7 +29,9 @@ Model discovery and generation follow [Mag1cFall/Gemini-Web2API](https://github.
 
 Requires `WAA_BACKEND=spidermonkey` and existing Playground accounts signed into Gemini Web. It uses the resident Playground worker's Go HTTP client, Google cookie store, proxy and lease. There is no independent Chrome process or new account browser. Login to AI Studio does not guarantee Gemini Web access.
 
-Models appear as `gemini-web:<playground-account-id>:<official-model-id>` and `gemini-web:<playground-account-id>:default`; the ID may contain an email address. Available models are read per account and cached for five minutes, with disabled/locked entries omitted. The caller's API key account bindings apply to these shared source accounts.
+Models appear as `gemini-web:<playground-account-id>:<official-model-id>` and `gemini-web:<playground-account-id>:default`; the ID may contain an email address. Available models are read per account and cached for five minutes, with disabled/locked entries omitted. The caller's API key account bindings apply to these shared source accounts. Model discovery uses at most four concurrent borrowed accounts.
+
+Supported chat model IDs also accept a thinking suffix such as `gemini-web:you@gmail.com:gemini-4-argon@think=high` when the source account offers that tier. The values are `low`, `medium`, and `high`; model policies determine available tiers.
 
 Only text conversations are currently implemented. API `stream=true` emits a completed SSE chunk for compatibility, **not** token-by-token streaming. Conversation history is flattened into role-labeled text for now; session persistence, multimedia and official tools remain out of scope. The Gemini Web `processSession` protocol is an unofficial website RPC subject to change. Account access and availability must be tested with a real Google session.
 
@@ -50,7 +52,7 @@ The API returns explicit errors for unsupported tools and multimodal requests. T
 
 1. `go test ./internal/alternate ./internal/api ./internal/app ./internal/aistudio` and `go vet ./...` on the repository's declared Go toolchain.
 2. Windows build via the existing repository Actions pipeline.
-3. Real Antigravity OAuth loopback and refresh; verify usable models and finish reasons.
+3. Real Antigravity OAuth loopback and refresh (including forced refresh on HTTP 401), SSE continuation hops and finish reasons.
 4. Real Gemini Web cookies, model discovery, WebChannel response and account switching.
 5. Security review of admin OAuth authentication and per-key account restrictions.
 
