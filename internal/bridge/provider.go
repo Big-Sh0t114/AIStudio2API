@@ -27,6 +27,7 @@ type Model struct {
 }
 
 type Config struct {
+    Lifecycle context.Context
     OAuthFile string
     OAuthClientID string
     OAuthClientSecret string
