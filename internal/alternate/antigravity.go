@@ -269,27 +269,33 @@ func (p *Antigravity) StartOAuth(ctx context.Context) (string,error) {
   if r.URL.Query().Get("state")!=state {http.Error(w,"Invalid OAuth state",http.StatusForbidden);return}
   code:=r.URL.Query().Get("code");if code==""{http.Error(w,"Missing authorization code",400);return}
   select {case <-done:http.Error(w,"OAuth callback already processed",409);return;default:close(done)}
-  go func(){
-   runctx,cancel:=context.WithTimeout(p.lifecycle,45*time.Second);defer cancel()
-   form:=url.Values{"client_id":{p.clientID},"client_secret":{p.clientSecret},"grant_type":{"authorization_code"},"redirect_uri":{redirect},"code":{code},"code_verifier":{verifier}}
-   req,err:=http.NewRequestWithContext(runctx,"POST","https://oauth2.googleapis.com/token",strings.NewReader(form.Encode()))
-   if err==nil{req.Header.Set("Content-Type","application/x-www-form-urlencoded")}
-   if err==nil{
-    resp,e:=p.client.Do(req)
-    if e==nil {
-     data,_:=io.ReadAll(io.LimitReader(resp.Body,1<<20));resp.Body.Close()
-     if resp.StatusCode==200 {
-      var token struct{AccessToken string `json:"access_token"`;RefreshToken string `json:"refresh_token"`;ExpiresIn int `json:"expires_in"`}
-      if json.Unmarshal(data,&token)==nil&&token.AccessToken!=""&&token.RefreshToken!="" {
-       _=p.save(agCredentials{AccessToken:token.AccessToken,RefreshToken:token.RefreshToken,Expiry:time.Now().Add(time.Duration(token.ExpiresIn)*time.Second),ClientID:p.clientID,ClientSecret:p.clientSecret,ManagedBy:"aistudio2api"})
-      }
-     }
-    }
-   }
-   _=server.Shutdown(context.Background())
-  }()
+  runctx,cancel:=context.WithTimeout(p.lifecycle,45*time.Second)
+  defer cancel()
+  form:=url.Values{"client_id":{p.clientID},"client_secret":{p.clientSecret},"grant_type":{"authorization_code"},"redirect_uri":{redirect},"code":{code},"code_verifier":{verifier}}
+  req,err:=http.NewRequestWithContext(runctx,"POST","https://oauth2.googleapis.com/token",strings.NewReader(form.Encode()))
+  if err!=nil {http.Error(w,"Cannot prepare token exchange",502);return}
+  req.Header.Set("Content-Type","application/x-www-form-urlencoded")
+  resp,err:=p.client.Do(req)
+  if err!=nil {http.Error(w,"Google OAuth token exchange failed",502);return}
+  raw,readErr:=io.ReadAll(io.LimitReader(resp.Body,1<<20))
+  closeErr:=resp.Body.Close()
+  if readErr!=nil||closeErr!=nil||resp.StatusCode!=200 {
+   http.Error(w,fmt.Sprintf("Google OAuth token exchange HTTP %d",resp.StatusCode),502);return
+  }
+  var token struct{AccessToken string `json:"access_token"`;RefreshToken string `json:"refresh_token"`;ExpiresIn int `json:"expires_in"`}
+  if json.Unmarshal(raw,&token)!=nil||token.AccessToken==""||token.RefreshToken==""{
+   http.Error(w,"Google returned incomplete OAuth credentials",502);return
+  }
+  if err:=p.save(agCredentials{AccessToken:token.AccessToken,RefreshToken:token.RefreshToken,Expiry:time.Now().Add(time.Duration(token.ExpiresIn)*time.Second),ClientID:p.clientID,ClientSecret:p.clientSecret,ManagedBy:"aistudio2api"});err!=nil{
+   http.Error(w,"Could not persist OAuth token; check runtime directory permissions",500);return
+  }
+  p.mu.Lock()
+  p.tokenCache=agCredentials{AccessToken:token.AccessToken,Expiry:time.Now().Add(time.Duration(token.ExpiresIn)*time.Second)}
+  p.cacheUntil=time.Time{}
+  p.mu.Unlock()
   w.Header().Set("Content-Type","text/html; charset=utf-8")
-  _,_=io.WriteString(w,"<html><body>Google authorization received. Return to AIStudio2API; check the credentials file before sending requests.</body></html>")
+  _,_=io.WriteString(w,"<html><body>Antigravity OAuth completed. Return to AIStudio2API.</body></html>")
+  go func(){_ =server.Shutdown(context.Background())}()
  })
  go func(){
   ctxTimeout,cancel:=context.WithTimeout(p.lifecycle,5*time.Minute);defer cancel()
