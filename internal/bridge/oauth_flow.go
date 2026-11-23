@@ -17,6 +17,7 @@ import (
     "os"
     "path/filepath"
     "strings"
+    "sync/atomic"
     "time"
 )
 
@@ -65,6 +66,7 @@ func (p *Provider) StartOAuth() (string, error) {
     mux:=http.NewServeMux()
     server:=&http.Server{Handler:mux,ReadHeaderTimeout:10*time.Second,IdleTimeout:10*time.Second}
     finish:=make(chan struct{},1)
+    var callbackTaken atomic.Bool
 
     mux.HandleFunc("/oauth-callback",func(w http.ResponseWriter,r *http.Request) {
         w.Header().Set("Cache-Control","no-store")
@@ -92,6 +94,10 @@ func (p *Provider) StartOAuth() (string, error) {
         code:=r.URL.Query().Get("code")
         if code==""||len(code)>8192 {
             oauthHTML(w,http.StatusBadRequest,"Missing or invalid authorization code")
+            return
+        }
+        if !callbackTaken.CompareAndSwap(false,true) {
+            oauthHTML(w,http.StatusConflict,"This authorization code is already being processed")
             return
         }
         // Use a bounded context independent of the browser's socket lifetime.
