@@ -202,6 +202,7 @@ func (p *Antigravity) Chat(ctx context.Context,id string,messages []Message) (st
  if len(contents)==0 {return "",fail(400,"invalid_request","At least one user/assistant message is required")}
  typeID:=randomID()
  request:=map[string]any{"contents":contents,"sessionId":agSessionID,"generationConfig":map[string]any{"maxOutputTokens":selected.MaxOutput,"thinkingConfig":map[string]any{"includeThoughts":false}}}
+ request["labels"]=map[string]string{"cascade_id":typeID,"root_cascade_id":typeID,"trajectory_id":typeID,"request_id":typeID+"-1","last_step_index":"0","model_enum":selected.Model,"used_claude":fmt.Sprint(selected.Provider=="MODEL_PROVIDER_ANTHROPIC"),"used_claude_conservative":fmt.Sprint(selected.Provider=="MODEL_PROVIDER_ANTHROPIC"),"used_non_gemini_model":fmt.Sprint(selected.Provider!="MODEL_PROVIDER_GOOGLE")}
  think:=request["generationConfig"].(map[string]any)["thinkingConfig"].(map[string]any)
  if selected.ThinkingLevel>0 {think["thinkingLevel"]=map[int]any{1:"LOW",2:"MEDIUM",3:"HIGH"}[selected.ThinkingLevel];if think["thinkingLevel"]==nil{think["thinkingLevel"]=selected.ThinkingLevel}}
  if selected.ThinkingBudget!=nil {think["thinkingBudget"]=*selected.ThinkingBudget}
