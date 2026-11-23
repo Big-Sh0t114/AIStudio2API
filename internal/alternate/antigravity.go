@@ -43,6 +43,8 @@ type agModel struct {
  Name string `json:"displayName"`
  Provider string `json:"modelProvider"`
  MaxOutput int `json:"maxOutputTokens"`
+ RequiresLeadInGeneration bool `json:"requiresLeadInGeneration"`
+ TabJumpPrintLineRange bool `json:"tabJumpPrintLineRange"`
  ThinkingLevel int `json:"thinkingLevel"`
  ThinkingBudget *int `json:"thinkingBudget"`
  Disabled bool `json:"disabled"`
@@ -173,7 +175,13 @@ func (p *Antigravity) catalog(ctx context.Context,refresh bool) ([]agModel,error
  for _,s:=range result.Sorts {for _,g:=range s.Groups {for _,id:=range g.ModelIDs {appendModel(id)}}}
  keys:=make([]string,0,len(result.Models));for id:=range result.Models{keys=append(keys,id)}
  sort.Strings(keys)
- for _,id:=range keys {appendModel(id)}
+ // Non-Agent entries may be internal completion or utility models.
+ // Keep only explicit user-facing chat models in this text-only bridge.
+ for _,id:=range keys {
+  model,ok:=result.Models[id]
+  if !ok||model.Name==""||model.RequiresLeadInGeneration||model.TabJumpPrintLineRange{continue}
+  appendModel(id)
+ }
  if len(models)==0 {return nil,fail(502,"invalid_catalog","Antigravity did not return any usable models")}
  p.mu.Lock();p.cached=append([]agModel(nil),models...);p.cacheUntil=time.Now().Add(5*time.Minute);p.mu.Unlock()
  return models,nil
