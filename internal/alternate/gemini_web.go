@@ -55,10 +55,20 @@ func parseWebCatalog(payload []any) ([]webModel,error) {
  if len(rows)==0{return nil,errors.New("Gemini Web model catalog is empty")}
  defaultMode:=webInt(payload,0)
  var models []webModel
- known:=map[string]bool{}
+ positions:=map[string]int{}
  add:=func(m webModel){
-  if m.ID==""||m.Hash==""||known[m.ID]{return}
-  known[m.ID]=true;models=append(models,m)
+  if m.ID==""||m.Hash==""{return}
+  if i,exists:=positions[m.ID];exists {
+   // The official policy may override a menu model with a variant-specific
+   // hash using the same public name. That variant must win on lookup.
+   if m.Variant!=""{
+    m.Default=models[i].Default
+    models[i]=m
+   }
+   return
+  }
+  positions[m.ID]=len(models)
+  models=append(models,m)
  }
  for _,v:=range rows{
   row:=webArray(v)
