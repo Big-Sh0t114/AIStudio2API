@@ -30,7 +30,7 @@ var webAPIKey=regexp.MustCompile(`"d2zJAe":"([^"]+)"`)
 var webServer=regexp.MustCompile(`"PI9WOb":"([^"]+)"`)
 var webSID=regexp.MustCompile(`\["c","([^"]+)"`)
 var webSlug=regexp.MustCompile(`[^a-z0-9.]+`)
-type webBootstrap struct {AT,BL,FSID,Language,APIKey,ServerToken string}
+type webBootstrap struct {AT,BL,FSID,Language,APIKey,ServerToken,ClientID string}
 type webModel struct {ID,Name,Hash,Variant string;Mode int; Levels []int; Default bool}
 func webMatch(data []byte,re *regexp.Regexp) string {
  m:=re.FindSubmatch(data);if len(m)<2{return ""};return string(m[1])
@@ -75,7 +75,7 @@ func parseWebCatalog(payload []any) ([]webModel,error) {
   row:=webArray(v)
   header:=webArray(webIndex(row,0))
   surface:=webInt(webArray(webIndex(row,3)),0)
-  if surface!=1||webIndex(header,14)!=nil{continue}
+  if surface!=1||len(webArray(webIndex(header,14)))>0{continue}
   variant:=webString(header,3);if variant==""{continue}
   short,title:=webString(header,4),webString(header,12)
   name:=webName(short,title,webString(header,5))
@@ -84,7 +84,23 @@ func parseWebCatalog(payload []any) ([]webModel,error) {
   for _,raw:=range webArray(webIndex(row,1)) {
    if n:=webInt(webArray(raw),0);n!=0{levels=append(levels,n)}
   }
+  if variant=="" {continue}
   add(webModel{ID:webModelID(name),Name:name,Hash:variant,Variant:variant,Mode:webInt(header,1),Levels:levels})
+ }
+ // The official Chat policy also lists available thinking levels on base models.
+ for _,v:=range webArray(webIndex(payload,24,1)) {
+  entry:=webArray(v)
+  header:=webArray(webIndex(entry,0))
+  if webInt(webArray(webIndex(entry,3)),0)!=1 || webString(header,3)!="" {continue}
+  if _,upgrade:=webIndex(header,14).([]any);upgrade {continue}
+  mode:=webInt(header,1)
+  var levels []int
+  for _,raw:=range webArray(webIndex(entry,1)) {
+   if n:=webInt(webArray(raw),0);n!=0{levels=append(levels,n)}
+  }
+  for i:=range models {
+   if models[i].Mode==mode && models[i].Variant==""{models[i].Levels=levels}
+  }
  }
  if len(models)==0{return nil,errors.New("Gemini Web returned no recognizable model modes")}
  foundDefault:=false
@@ -98,7 +114,7 @@ func webInit(ctx context.Context,page WebTransport) (webCatalog,error) {
  if err=checkStatus(res,"Gemini Web bootstrap");err!=nil{return webCatalog{},err}
  b:=webBootstrap{
   AT:webMatch(res.Body,webAT),BL:webMatch(res.Body,webBL),FSID:webMatch(res.Body,webFSID),
-  Language:webMatch(res.Body,webLang),APIKey:webMatch(res.Body,webAPIKey),ServerToken:webMatch(res.Body,webServer),
+  Language:webMatch(res.Body,webLang),APIKey:webMatch(res.Body,webAPIKey),ServerToken:webMatch(res.Body,webServer),ClientID:webNonce(),
  }
  if b.AT==""||b.BL==""||b.FSID=="" {return webCatalog{},fail(401,"authentication_required","Gemini Web bootstrap is missing signed-in tokens")}
  if b.Language==""{b.Language="en"}
@@ -115,7 +131,7 @@ func webBatch(ctx context.Context,page WebTransport,b webBootstrap,rpcID,payload
  head.Set("Content-Type","application/x-www-form-urlencoded;charset=utf-8")
  head.Set("Accept","*/*")
  head.Set("X-Same-Domain","1")
- generic,_:=webJSON([]any{1,nil,nil,nil,nil,nil,b.Language,nil,[]int{4,33,22,5,6,8,16,19,20,38},nil,nil,nil,nil,nil,nil,nil,randomID(),[]string{b.BL}})
+ generic,_:=webJSON([]any{1,nil,nil,nil,nil,nil,b.Language,nil,[]int{4,33,22,5,6,8,16,19,20,38},nil,nil,nil,nil,nil,nil,nil,b.ClientID,[]string{b.BL}})
  head.Set("x-goog-ext-525001261-jspb",generic)
  head.Set("x-goog-ext-73010989-jspb","[]")
  res,err:=page.Fetch(ctx,"POST",webOrigin+"/_/BardChatUi/data/batchexecute?"+query,head,[]byte(body))
@@ -171,13 +187,14 @@ func webProto(values []any) []byte {
  }
  return out
 }
-func webModelHeader(m webModel,b webBootstrap) []byte {
- clientID:=randomID()
+func webModelHeader(m webModel,b webBootstrap,level int) []byte {
+ clientID:=b.ClientID
  header:=[]any{1,nil,nil,nil,m.Hash,nil,b.Language,0,[]int{4,33,22,5,6,8,16,19,20,38},nil,nil,0,nil,nil,m.Mode,nil,clientID,[]string{b.BL},nil,[]any{[]any{0,0}}}
+ if level!=0{header[15]=level}
  if m.Variant!="" {for len(header)<24{header=append(header,nil)};header=append(header,m.Variant)}
  return webProto(header)
 }
-func webGeneratePayload(m webModel,b webBootstrap,rid,cid string) []any {
+func webGeneratePayload(m webModel,b webBootstrap,rid,cid string,level int) []any {
  inner:=make([]any,99)
  inner[0]=[]any{"",0,nil,nil,nil,nil,0}
  inner[1]=[]any{b.Language}
@@ -197,6 +214,7 @@ func webGeneratePayload(m webModel,b webBootstrap,rid,cid string) []any {
  inner[61]=[]any{}
  inner[68]=1
  inner[79]=m.Mode
+ if level!=0 {inner[80]=level}
  inner[91]=0
  inner[96]=1
  inner[98]=1
@@ -215,7 +233,7 @@ func webChannelRequest(ctx context.Context,page WebTransport,method,query,body s
  return page.Fetch(ctx,method,webChannel+"?"+query,head,[]byte(body))
 }
 type channelState struct {gSession,sid string; rid,ofs,aid int}
-func webOpenChannel(ctx context.Context,page WebTransport,m webModel,b webBootstrap,requestID string) (channelState,error) {
+func webOpenChannel(ctx context.Context,page WebTransport,m webModel,b webBootstrap,requestID string,level int) (channelState,error) {
  auth,authUser,err:=page.Authorization();if err!=nil{return channelState{},err}
  encode:=base64.StdEncoding.EncodeToString
  headers:=strings.Join([]string{
@@ -223,7 +241,7 @@ func webOpenChannel(ctx context.Context,page WebTransport,m webModel,b webBootst
   "X-Goog-AuthUser:"+strconv.Itoa(authUser),
   "X-Goog-Api-Key:"+b.APIKey,
   "X-Server-Token:"+b.ServerToken,
-  "x-goog-ext-525001261-bin:"+encode(webModelHeader(m,b)),
+  "x-goog-ext-525001261-bin:"+encode(webModelHeader(m,b,level)),
   "x-goog-ext-73010989-bin:"+encode(webProto([]any{0})),
   "x-goog-ext-525005358-bin:"+encode(webProto([]any{requestID,1})),
   "x-goog-ext-73010990-bin:"+encode(webProto([]any{0,0,0})),
@@ -292,6 +310,11 @@ func webExtractText(payload []any) (string,bool) {
 }
 func (w *Web) Chat(ctx context.Context,id string,messages []Message) (string,error) {
  sourceID,requested,err:=splitWebID(id);if err!=nil{return "",err}
+ thinkingLevel:=0
+ if name,think,ok:=strings.Cut(requested,"@think=");ok{
+  requested=name
+  switch strings.ToLower(think){case "low":thinkingLevel=1;case "medium":thinkingLevel=4;case "high":thinkingLevel=2;default:return "",fail(400,"invalid_thinking_level","Use @think=low, @think=medium or @think=high")}
+ }
  prompt,err:=safeText(messages);if err!=nil{return "",err}
  catalog,err:=w.catalog(ctx,sourceID,false);if err!=nil{return "",err}
  var selected *webModel
@@ -299,13 +322,18 @@ func (w *Web) Chat(ctx context.Context,id string,messages []Message) (string,err
   if catalog.models[i].ID==requested || requested=="default"&&catalog.models[i].Default {selected=&catalog.models[i];break}
  }
  if selected==nil{return "",fail(404,"model_not_found","Gemini Web model not in live account catalog: "+requested)}
+ if thinkingLevel!=0 && len(selected.Levels)>0 {
+  supported:=false
+  for _,level:=range selected.Levels{if level==thinkingLevel{supported=true;break}}
+  if !supported{return "",fail(400,"unsupported_thinking_level","The selected Gemini Web model does not offer this thinking level")}
+ }
  page,err:=w.source(ctx,sourceID);if err!=nil{return "",err}
  defer page.Close()
  b:=catalog.bootstrap
  if b.APIKey==""||b.ServerToken=="" {return "",fail(502,"invalid_bootstrap","Gemini Web processSession credentials missing")}
  requestID,contextID:=randomID(),randomID()
- ch,err:=webOpenChannel(ctx,page,*selected,b,requestID);if err!=nil{return "",err}
- payload:=webGeneratePayload(*selected,b,requestID,contextID)
+ ch,err:=webOpenChannel(ctx,page,*selected,b,requestID,thinkingLevel);if err!=nil{return "",err}
+ payload:=webGeneratePayload(*selected,b,requestID,contextID,thinkingLevel)
  msgA:=[]any{[]any{[]any{1,selected.Hash,b.Language,requestID},0,nil,nil,nil,nil,nil,[]any{nil,nil,nil,nil,[]any{payload,nil,nil,1}}}}
  msgB:=[]any{nil,[]any{1,nil,nil,nil,nil,nil,nil,nil,[]any{prompt}}}
  if err=webSend(ctx,page,&ch,msgA,msgB);err!=nil{return "",err}
