@@ -99,11 +99,13 @@ func (p *Antigravity) save(c agCredentials) error {
  if err=f.Close();err!=nil{return err}
  return os.Rename(temp,p.file)
 }
-func (p *Antigravity) token(ctx context.Context) (string,error) {
+func (p *Antigravity) token(ctx context.Context) (string,error) {return p.tokenInternal(ctx,false)}
+func (p *Antigravity) forceRefresh(ctx context.Context) (string,error) {return p.tokenInternal(ctx,true)}
+func (p *Antigravity) tokenInternal(ctx context.Context,force bool) (string,error) {
  p.mu.Lock();defer p.mu.Unlock()
- if p.tokenCache.AccessToken!="" && time.Until(p.tokenCache.Expiry)>5*time.Minute {return p.tokenCache.AccessToken,nil}
+ if !force && p.tokenCache.AccessToken!="" && time.Until(p.tokenCache.Expiry)>5*time.Minute {return p.tokenCache.AccessToken,nil}
  c,err:=p.read();if err!=nil{return "",err}
- if c.AccessToken!="" && (c.Expiry.IsZero() || time.Until(c.Expiry)>5*time.Minute) {return c.AccessToken,nil}
+ if !force && c.AccessToken!="" && (c.Expiry.IsZero() || time.Until(c.Expiry)>5*time.Minute) {return c.AccessToken,nil}
  id:=c.ClientID;if id==""{id=p.clientID}
  secret:=c.ClientSecret;if secret==""{secret=p.clientSecret}
  if c.RefreshToken==""||id=="" {return "",fail(401,"oauth_expired","Refresh token or OAuth client_id is missing")}
@@ -123,21 +125,32 @@ func (p *Antigravity) token(ctx context.Context) (string,error) {
  return c.AccessToken,nil
 }
 func (p *Antigravity) request(ctx context.Context,base,path string,payload any,out any) error {
- token,err:=p.token(ctx);if err!=nil{return err}
  raw,err:=json.Marshal(payload);if err!=nil{return err}
- req,err:=http.NewRequestWithContext(ctx,"POST",base+path,bytes.NewReader(raw));if err!=nil{return err}
- req.Header.Set("Authorization","Bearer "+token)
- req.Header.Set("Content-Type","application/json")
- req.Header.Set("User-Agent","antigravity")
- resp,err:=p.client.Do(req);if err!=nil{return err}
- defer resp.Body.Close()
- body,err:=io.ReadAll(io.LimitReader(resp.Body,16<<20));if err!=nil{return err}
- if resp.StatusCode!=200 {
-  if resp.StatusCode==401 {return fail(401,"oauth_expired","Antigravity upstream rejected OAuth token")}
-  return fail(resp.StatusCode,"upstream_error",fmt.Sprintf("Antigravity %s HTTP %d: %.350s",path,resp.StatusCode,string(body)))
+ for attempt:=0;attempt<2;attempt++{
+  var token string
+  if attempt==0{token,err=p.token(ctx)}else{token,err=p.forceRefresh(ctx)}
+  if err!=nil{return err}
+  req,reqErr:=http.NewRequestWithContext(ctx,"POST",base+path,bytes.NewReader(raw))
+  if reqErr!=nil{return reqErr}
+  req.Header.Set("Authorization","Bearer "+token)
+  req.Header.Set("Content-Type","application/json")
+  req.Header.Set("User-Agent","antigravity")
+  resp,doErr:=p.client.Do(req);if doErr!=nil{return doErr}
+  body,readErr:=io.ReadAll(io.LimitReader(resp.Body,(16<<20)+1))
+  closeErr:=resp.Body.Close()
+  if readErr!=nil{return readErr}
+  if closeErr!=nil{return closeErr}
+  if resp.StatusCode==401 && attempt==0{continue}
+  if resp.StatusCode!=200{
+   code:="upstream_error"
+   if resp.StatusCode==401{code="oauth_expired"}
+   return fail(resp.StatusCode,code,fmt.Sprintf("Antigravity %s HTTP %d: %.350s",path,resp.StatusCode,string(body)))
+  }
+  if len(body)>16<<20{return fail(502,"response_too_large","Antigravity RPC exceeded 16 MiB")}
+  if out!=nil{return json.Unmarshal(body,out)}
+  return nil
  }
- if out!=nil{return json.Unmarshal(body,out)}
- return nil
+ return fail(401,"oauth_expired","Antigravity authentication was rejected")
 }
 func (p *Antigravity) project(ctx context.Context) (string,error) {
  if p.projectID!="" {return p.projectID,nil}
