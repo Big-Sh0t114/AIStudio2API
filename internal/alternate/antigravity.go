@@ -53,6 +53,7 @@ type Antigravity struct {
  client *http.Client
  mu sync.Mutex
  cached []agModel
+ tokenCache agCredentials
  cacheUntil time.Time
  oauthMu sync.Mutex
  oauthActive bool
@@ -98,6 +99,7 @@ func (p *Antigravity) save(c agCredentials) error {
 }
 func (p *Antigravity) token(ctx context.Context) (string,error) {
  p.mu.Lock();defer p.mu.Unlock()
+ if p.tokenCache.AccessToken!="" && time.Until(p.tokenCache.Expiry)>5*time.Minute {return p.tokenCache.AccessToken,nil}
  c,err:=p.read();if err!=nil{return "",err}
  if c.AccessToken!="" && (c.Expiry.IsZero() || time.Until(c.Expiry)>5*time.Minute) {return c.AccessToken,nil}
  id:=c.ClientID;if id==""{id=p.clientID}
@@ -115,6 +117,7 @@ func (p *Antigravity) token(ctx context.Context) (string,error) {
  c.AccessToken=result.AccessToken;c.Expiry=time.Now().Add(time.Duration(result.ExpiresIn)*time.Second)
  if result.RefreshToken!=""{c.RefreshToken=result.RefreshToken}
  if err=p.save(c);err!=nil{return "",err}
+ p.tokenCache=c
  return c.AccessToken,nil
 }
 func (p *Antigravity) request(ctx context.Context,base,path string,payload any,out any) error {
