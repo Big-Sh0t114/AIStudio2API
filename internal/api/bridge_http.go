@@ -177,3 +177,19 @@ func (s *server) handleBridgeOrModel(w http.ResponseWriter,r *http.Request) {
     }
     writeOpenAIError(w,404,"model_not_found","Bridge model is not registered or its account is unavailable")
 }
+
+\n// OAuth consent belongs exclusively to the authenticated management mux.
+func (s *server) handleAntigravityOAuthStart(w http.ResponseWriter,r *http.Request) {
+    if s.config.Bridge==nil {
+        writeOpenAIError(w,503,"not_configured","Bridge provider is not configured")
+        return
+    }
+    authURL,err:=s.config.Bridge.StartOAuth()
+    if err!=nil {writeBridgeError(w,err);return}
+    w.Header().Set("Cache-Control","no-store")
+    writeJSON(w,200,map[string]any{
+        "authorization_url":authURL,
+        "callback_url":"http://localhost:51121/oauth-callback",
+        "expires_in_seconds":300,
+    })
+}
