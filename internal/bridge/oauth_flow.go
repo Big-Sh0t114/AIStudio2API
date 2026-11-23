@@ -124,7 +124,7 @@ func (p *Provider) StartOAuth() (string, error) {
             return
         }
         p.oauth.Lock()
-        p.oauth.access,p.oauth.refresh,p.oauth.expiry,p.oauth.project="","","",time.Time{}
+        p.oauth.access,p.oauth.refresh,p.oauth.expiry,p.oauth.project="","",time.Time{},""
         p.oauth.Unlock()
         oauthHTML(w,http.StatusOK,"Authentication successful. You may close this page.")
         select {case finish<-struct{}{}:default:}
