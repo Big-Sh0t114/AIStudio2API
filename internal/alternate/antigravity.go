@@ -236,23 +236,31 @@ func (p *Antigravity) Chat(ctx context.Context,id string,messages []Message) (st
  const maxContinuationHops=6
  var answer string
  for hop:=0;hop<maxContinuationHops;hop++{
-  token,err:=p.token(ctx);if err!=nil{return "",err}
   body,err:=json.Marshal(envelope);if err!=nil{return "",err}
-  req,err:=http.NewRequestWithContext(ctx,"POST",agDaily+"/v1internal:streamGenerateContent?alt=sse",bytes.NewReader(body))
-  if err!=nil{return "",err}
-  req.Header.Set("Content-Type","application/json")
-  req.Header.Set("User-Agent","antigravity")
-  req.Header.Set("Authorization","Bearer "+token)
-  resp,err:=p.client.Do(req);if err!=nil{return "",err}
-  if resp.StatusCode!=200{
-   raw,_:=io.ReadAll(io.LimitReader(resp.Body,2048))
-   _=resp.Body.Close()
-   return "",fail(resp.StatusCode,"upstream_error",fmt.Sprintf("Antigravity stream HTTP %d: %s",resp.StatusCode,raw))
+  var chunk agStreamResult
+  for authAttempt:=0;authAttempt<2;authAttempt++{
+   var token string
+   if authAttempt==0{token,err=p.token(ctx)}else{token,err=p.forceRefresh(ctx)}
+   if err!=nil{return "",err}
+   req,reqErr:=http.NewRequestWithContext(ctx,"POST",agDaily+"/v1internal:streamGenerateContent?alt=sse",bytes.NewReader(body))
+   if reqErr!=nil{return "",reqErr}
+   req.Header.Set("Content-Type","application/json")
+   req.Header.Set("User-Agent","antigravity")
+   req.Header.Set("Authorization","Bearer "+token)
+   resp,doErr:=p.client.Do(req);if doErr!=nil{return "",doErr}
+   if resp.StatusCode==401 && authAttempt==0{_ =resp.Body.Close();continue}
+   if resp.StatusCode!=200{
+    raw,_:=io.ReadAll(io.LimitReader(resp.Body,2048))
+    _=resp.Body.Close()
+    return "",fail(resp.StatusCode,"upstream_error",fmt.Sprintf("Antigravity stream HTTP %d: %s",resp.StatusCode,raw))
+   }
+   parsed,parseErr:=decodeAntigravitySSE(resp.Body)
+   closeErr:=resp.Body.Close()
+   if parseErr!=nil{return "",parseErr}
+   if closeErr!=nil{return "",closeErr}
+   chunk=parsed
+   break
   }
-  chunk,parseErr:=decodeAntigravitySSE(resp.Body)
-  closeErr:=resp.Body.Close()
-  if parseErr!=nil{return "",parseErr}
-  if closeErr!=nil{return "",closeErr}
   if strings.HasPrefix(chunk.Text,answer) && answer!="" {answer=chunk.Text}else{answer+=chunk.Text}
   if chunk.FinishReason=="CONTINUATION"{
    request["continuationToken"]=chunk.ContinuationToken
