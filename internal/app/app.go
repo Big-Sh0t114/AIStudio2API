@@ -269,6 +269,7 @@ func runServer(ctx context.Context, cfg config.Config, manager *runtimeManager, 
     notebookProvider := notebook.NewWithShared(filepath.Join("runtime", "notebook"), sharedSessions)
     defer notebookProvider.Close()
     bridgeProvider, err := bridge.New(bridge.Config{
+        Lifecycle: ctx,
         OAuthFile: cfg.AntigravityOAuthFile,
         OAuthClientID: cfg.AntigravityOAuthClientID,
         OAuthClientSecret: cfg.AntigravityOAuthClientSecret,
