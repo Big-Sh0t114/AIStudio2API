@@ -62,7 +62,9 @@ func (p *Provider) StartOAuth() (string, error) {
         releaseFlow()
         return "",&APIError{Status:409,Code:"oauth_callback_busy",Message:"OAuth callback port 51121 is in use"}
     }
-    ctx,cancel:=context.WithTimeout(context.Background(),oauthFlowTimeout)
+    parent:=p.cfg.Lifecycle
+    if parent==nil {parent=context.Background()}
+    ctx,cancel:=context.WithTimeout(parent,oauthFlowTimeout)
     mux:=http.NewServeMux()
     server:=&http.Server{Handler:mux,ReadHeaderTimeout:10*time.Second,IdleTimeout:10*time.Second}
     finish:=make(chan struct{},1)
