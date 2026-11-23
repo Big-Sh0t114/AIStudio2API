@@ -279,6 +279,7 @@ func (p *Antigravity) StartOAuth(ctx context.Context) (string,error) {
   if r.URL.Query().Get("state")!=state {http.Error(w,"Invalid OAuth state",http.StatusForbidden);return}
   code:=r.URL.Query().Get("code");if code==""{http.Error(w,"Missing authorization code",400);return}
   select {case <-done:http.Error(w,"OAuth callback already processed",409);return;default:close(done)}
+  defer func(){go func(){_ =server.Shutdown(context.Background())}()}()
   runctx,cancel:=context.WithTimeout(p.lifecycle,45*time.Second)
   defer cancel()
   form:=url.Values{"client_id":{p.clientID},"client_secret":{p.clientSecret},"grant_type":{"authorization_code"},"redirect_uri":{redirect},"code":{code},"code_verifier":{verifier}}
@@ -305,7 +306,6 @@ func (p *Antigravity) StartOAuth(ctx context.Context) (string,error) {
   p.mu.Unlock()
   w.Header().Set("Content-Type","text/html; charset=utf-8")
   _,_=io.WriteString(w,"<html><body>Antigravity OAuth completed. Return to AIStudio2API.</body></html>")
-  go func(){_ =server.Shutdown(context.Background())}()
  })
  go func(){
   ctxTimeout,cancel:=context.WithTimeout(p.lifecycle,5*time.Minute);defer cancel()
