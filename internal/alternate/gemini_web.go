@@ -289,14 +289,21 @@ func webPoll(ctx context.Context,page WebTransport,ch *channelState) ([][]any,er
  }
  return frames,nil
 }
-func webFramePayload(frame []any) []any {
+func webFramePayloads(frame []any) [][]any {
  message:=webIndex(frame,0)
  entries:=webArray(webIndex(message,1,6))
+ var out [][]any
  for _,entry:=range entries {
   root:=webArray(webIndex(entry,3,3))
-  if len(root)>0{return root}
+  if len(root)>0{out=append(out,root)}
  }
- return nil
+ return out
+}
+func webFrameEnded(frame []any) bool {
+ message:=webArray(webIndex(frame,0))
+ if len(message)!=4 || message[1]!=nil {return false}
+ _,ok:=message[3].([]any)
+ return ok
 }
 func webExtractText(payload []any) (string,bool) {
  items:=webArray(webIndex(payload,4))
@@ -305,7 +312,7 @@ func webExtractText(payload []any) (string,bool) {
   if len(candidate)==0{continue}
   text:=webString(candidate,1,0)
   phase:=webInt(candidate,8,0)
-  return text,phase==2||phase==3
+  return text,phase==2||phase==4
  }
  return "",false
 }
@@ -338,26 +345,30 @@ func (w *Web) Chat(ctx context.Context,id string,messages []Message) (string,err
  msgA:=[]any{[]any{[]any{1,selected.Hash,b.Language,requestID},0,nil,nil,nil,nil,nil,[]any{nil,nil,nil,nil,[]any{payload,nil,nil,1}}}}
  msgB:=[]any{nil,[]any{1,nil,nil,nil,nil,nil,nil,nil,[]any{prompt}}}
  if err=webSend(ctx,page,&ch,msgA,msgB);err!=nil{return "",err}
- answer:="";complete:=false;ended:=false
+ answer:="";complete:=false;ended:=false;sentEnd:=false
  for attempts:=0;attempts<80;attempts++ {
   if err=ctx.Err();err!=nil{return "",err}
   frames,e:=webPoll(ctx,page,&ch);if e!=nil{return "",e}
   for _,frame:=range frames {
    tag,_:=webIndex(frame,0).(string)
-   if tag=="close"{ended=true;break}
-   payload:=webFramePayload(frame)
-   if len(payload)==0{continue}
-   txt,done:=webExtractText(payload)
-   if txt!="" {answer=txt}
-   complete=complete||done
-   token:=webString(payload,25)
-   if token=="response_committed" { _=webSend(ctx,page,&ch,[]any{nil,nil,nil,[]any{1}}) }
-   if token!=""&&token!="response_committed"{ended=true;break}
+   if tag=="close"||webFrameEnded(frame) {ended=true;break}
+   for _,payload:=range webFramePayloads(frame){
+    txt,done:=webExtractText(payload)
+    if txt!="" {answer=txt}
+    complete=complete||done
+    token:=webString(payload,25)
+    if token=="response_committed" && !sentEnd {
+     if err:=webSend(ctx,page,&ch,[]any{nil,nil,nil,[]any{1}});err!=nil{return "",err}
+     sentEnd=true
+    }
+    if token!="" && token!="response_committed"{ended=true;break}
+   }
+   if ended{break}
   }
   if ended{break}
  }
  if answer=="" {return "",fail(502,"empty_response","Gemini Web returned no text")}
- if !ended&&!complete {return "",fail(502,"incomplete_stream","Gemini Web processSession did not complete")}
+ if !complete {return "",fail(502,"incomplete_stream","Gemini Web response never completed")}
  return answer,nil
 }
 func webNonce()string {var raw [12]byte;_,_=rand.Read(raw[:]);return base64.RawURLEncoding.EncodeToString(raw[:])}
