@@ -17,7 +17,7 @@ type Model struct { ID, Name, Owner string }
 type HTTPResponse struct { Status int; Headers http.Header; Body []byte }
 type WebTransport interface {
     Fetch(context.Context, string, string, http.Header, []byte) (HTTPResponse, error)
-    Authorization() (string, error)
+    Authorization() (string, int, error)
     Close() error
 }
 type Source struct { ID, Label, State string }
