@@ -92,18 +92,41 @@ func (w *Web) source(ctx context.Context,id string) (WebTransport,error) {
 func (w *Web) Models(ctx context.Context) ([]Model,error) {
     if w.sources==nil {return nil,nil}
     sources,err:=w.sources.Sources(ctx);if err!=nil{return nil,err}
-    var all []Model
-    for _,src:=range sources {
+    // Parallelize discovery but never open more than four borrowed workers
+    // at once. Preserve the account order in the published model list.
+    perSource:=make([][]Model,len(sources))
+    slots:=make(chan struct{},4)
+    var wg sync.WaitGroup
+    for index,src:=range sources {
         if !validSourceID(src.ID) {continue}
-        cctx,cancel:=context.WithTimeout(ctx,12*time.Second)
-        catalog,err:=w.catalog(cctx,src.ID,false)
-        cancel()
-        if err!=nil {continue}
-        for _,m:=range catalog.models {
-            all=append(all,Model{ID:"gemini-web:"+src.ID+":"+m.ID,Name:"Gemini Web / "+src.Label+" / "+m.Name,Owner:"gemini-web"})
-        }
-        all=append(all,Model{ID:"gemini-web:"+src.ID+":default",Name:"Gemini Web / "+src.Label+" / Default",Owner:"gemini-web"})
+        wg.Add(1)
+        go func(i int,source Source){
+            defer wg.Done()
+            select{
+            case slots<-struct{}{}:defer func(){<-slots}()
+            case <-ctx.Done():return
+            }
+            cctx,cancel:=context.WithTimeout(ctx,12*time.Second)
+            catalog,err:=w.catalog(cctx,source.ID,false)
+            cancel()
+            if err!=nil {return}
+            for _,m:=range catalog.models {
+                perSource[i]=append(perSource[i],Model{
+                    ID:"gemini-web:"+source.ID+":"+m.ID,
+                    Name:"Gemini Web / "+source.Label+" / "+m.Name,
+                    Owner:"gemini-web",
+                })
+            }
+            perSource[i]=append(perSource[i],Model{
+                ID:"gemini-web:"+source.ID+":default",
+                Name:"Gemini Web / "+source.Label+" / Default",
+                Owner:"gemini-web",
+            })
+        }(index,src)
     }
+    wg.Wait()
+    var all []Model
+    for _,group:=range perSource{all=append(all,group...)}
     return all,nil
 }
 func (w *Web) catalog(ctx context.Context,id string,force bool) (webCatalog,error) {
