@@ -85,7 +85,7 @@ func (s *server) handleAlternateOrChat(w http.ResponseWriter,r *http.Request) {
  for _,m:=range messages {prompt+=notebookTextTokens(m.Content)}
  completion:=notebookTextTokens(content)
  usage:=map[string]any{"prompt_tokens":prompt,"completion_tokens":completion,"total_tokens":prompt+completion,"estimated":true}
- SetAccessLogGenerationResult(r.Context(), &aistudio.Usage{InputTokens:prompt,OutputTokens:completion,TotalTokens:prompt+completion}, 0)
+ SetAccessLogGenerationResult(r.Context(), &aistudio.Usage{InputTokens:prompt,OutputTokens:completion,TotalTokens:prompt+completion,Estimated:true}, 0)
  SetAccessLogFinishReason(r.Context(),"stop")
  w.Header().Set("X-Token-Usage-Estimated","true")
  if input.Stream {
