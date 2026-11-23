@@ -75,7 +75,8 @@ func parseWebCatalog(payload []any) ([]webModel,error) {
   row:=webArray(v)
   header:=webArray(webIndex(row,0))
   surface:=webInt(webArray(webIndex(row,3)),0)
-  if surface!=1||len(webArray(webIndex(header,14)))>0{continue}
+  if surface!=1{continue}
+  if _,upgrade:=webIndex(header,14).([]any);upgrade{continue}
   variant:=webString(header,3);if variant==""{continue}
   short,title:=webString(header,4),webString(header,12)
   name:=webName(short,title,webString(header,5))
