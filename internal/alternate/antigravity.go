@@ -1,7 +1,6 @@
 package alternate
 
 import (
- "bufio"
  "bytes"
  "context"
  "crypto/rand"
@@ -213,39 +212,35 @@ func (p *Antigravity) Chat(ctx context.Context,id string,messages []Message) (st
   "requestId":"agent/"+typeID+"/"+fmt.Sprint(time.Now().UnixMilli())+"/"+typeID+"/1",
   "request":request,
  }
- token,err:=p.token(ctx);if err!=nil{return "",err}
- body,err:=json.Marshal(envelope);if err!=nil{return "",err}
- req,err:=http.NewRequestWithContext(ctx,"POST",agDaily+"/v1internal:streamGenerateContent?alt=sse",bytes.NewReader(body));if err!=nil{return "",err}
- req.Header.Set("Content-Type","application/json")
- req.Header.Set("User-Agent","antigravity")
- req.Header.Set("Authorization","Bearer "+token)
- resp,err:=p.client.Do(req);if err!=nil{return "",err}
- defer resp.Body.Close()
- if resp.StatusCode!=200 {
-  raw,_:=io.ReadAll(io.LimitReader(resp.Body,2048))
-  return "",fail(resp.StatusCode,"upstream_error",fmt.Sprintf("Antigravity stream HTTP %d: %s",resp.StatusCode,raw))
- }
- scanner:=bufio.NewScanner(resp.Body);scanner.Buffer(make([]byte,64<<10),8<<20)
- answer:="";finished:=false
- for scanner.Scan(){
-  line:=strings.TrimSpace(scanner.Text())
-  if !strings.HasPrefix(line,"data:"){continue}
-  data:=strings.TrimSpace(strings.TrimPrefix(line,"data:"))
-  if data==""||data=="[DONE]"{continue}
-  var root struct{Response struct{
-   Candidates []struct{Content struct{Parts []struct{Text string `json:"text"`;Thought bool `json:"thought"`} `json:"parts"`} `json:"content"`;FinishReason string `json:"finishReason"`} `json:"candidates"`
-  } `json:"response"`}
-  if json.Unmarshal([]byte(data),&root)!=nil{continue}
-  for _,c:=range root.Response.Candidates {
-   var text string;for _,p:=range c.Content.Parts {if !p.Thought {text+=p.Text}}
-   if strings.HasPrefix(text,answer){answer=text}else if !strings.HasSuffix(answer,text){answer+=text}
-   if c.FinishReason!=""{finished=true}
+ const maxContinuationHops=6
+ var answer string
+ for hop:=0;hop<maxContinuationHops;hop++{
+  token,err:=p.token(ctx);if err!=nil{return "",err}
+  body,err:=json.Marshal(envelope);if err!=nil{return "",err}
+  req,err:=http.NewRequestWithContext(ctx,"POST",agDaily+"/v1internal:streamGenerateContent?alt=sse",bytes.NewReader(body))
+  if err!=nil{return "",err}
+  req.Header.Set("Content-Type","application/json")
+  req.Header.Set("User-Agent","antigravity")
+  req.Header.Set("Authorization","Bearer "+token)
+  resp,err:=p.client.Do(req);if err!=nil{return "",err}
+  if resp.StatusCode!=200{
+   raw,_:=io.ReadAll(io.LimitReader(resp.Body,2048))
+   _=resp.Body.Close()
+   return "",fail(resp.StatusCode,"upstream_error",fmt.Sprintf("Antigravity stream HTTP %d: %s",resp.StatusCode,raw))
   }
+  chunk,parseErr:=decodeAntigravitySSE(resp.Body)
+  closeErr:=resp.Body.Close()
+  if parseErr!=nil{return "",parseErr}
+  if closeErr!=nil{return "",closeErr}
+  if strings.HasPrefix(chunk.Text,answer) && answer!="" {answer=chunk.Text}else{answer+=chunk.Text}
+  if chunk.FinishReason=="CONTINUATION"{
+   request["continuationToken"]=chunk.ContinuationToken
+   continue
+  }
+  if answer==""{return "",fail(502,"empty_response","Antigravity returned no text")}
+  return answer,nil
  }
- if err:=scanner.Err();err!=nil{return "",err}
- if answer=="" {return "",fail(502,"empty_response","Antigravity returned no text")}
- if !finished {return "",fail(502,"incomplete_stream","Antigravity stream closed without a finish reason")}
- return answer,nil
+ return "",fail(502,"continuation_limit","Antigravity requested too many continuation hops")
 }
 func randomID() string {var b [16]byte;_,_=rand.Read(b[:]);return fmt.Sprintf("%x-%x",b[:8],b[8:])}
 
