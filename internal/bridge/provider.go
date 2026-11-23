@@ -9,6 +9,7 @@ import (
     "net/url"
     "os"
     "strings"
+    "sync"
     "time"
 
     "github.com/Mag1cFall/AIStudio2API/internal/notebook"
@@ -41,6 +42,8 @@ type Provider struct {
     cfg Config
     http *http.Client
     oauth tokenCache
+    flowMu sync.Mutex
+    flowActive bool
 }
 
 func New(cfg Config) (*Provider, error) {
