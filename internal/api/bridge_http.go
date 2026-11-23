@@ -180,6 +180,12 @@ func (s *server) handleBridgeOrModel(w http.ResponseWriter,r *http.Request) {
 
 \n// OAuth consent belongs exclusively to the authenticated management mux.
 func (s *server) handleAntigravityOAuthStart(w http.ResponseWriter,r *http.Request) {
+    // With the legacy admin authentication switch off, /api/ is public.
+    // Credential mutations must never be accessible in that configuration.
+    if !s.config.AdminAuthEnabled {
+        writeOpenAIError(w,403,"admin_auth_required","Enable administrator authentication before initiating OAuth")
+        return
+    }
     if s.config.Bridge==nil {
         writeOpenAIError(w,503,"not_configured","Bridge provider is not configured")
         return
