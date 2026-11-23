@@ -253,7 +253,17 @@ func (p *Antigravity) StartOAuth(ctx context.Context) (string,error) {
  if p.file==""||p.clientID=="" {return "",fail(400,"oauth_not_configured","ANTIGRAVITY_OAUTH_FILE and ANTIGRAVITY_CLIENT_ID are required")}
  p.oauthMu.Lock()
  if p.oauthActive {p.oauthMu.Unlock();return "",fail(409,"oauth_in_progress","An OAuth login is already in progress")}
- if c,err:=p.read();err==nil && c.ManagedBy!="aistudio2api" {p.oauthMu.Unlock();return "",fail(409,"file_owned_by_other_app","Refusing to replace imported OAuth credentials")}
+ if stat,statErr:=os.Stat(p.file);statErr==nil {
+  if stat.IsDir(){p.oauthMu.Unlock();return "",fail(409,"invalid_credentials_path","OAuth target path is a directory")}
+  existing,readErr:=p.read()
+  if readErr!=nil||existing.ManagedBy!="aistudio2api" {
+   p.oauthMu.Unlock()
+   return "",fail(409,"file_owned_by_other_app","Refusing to replace an imported or unrecognized OAuth credential file")
+  }
+ }else if !errors.Is(statErr,os.ErrNotExist){
+  p.oauthMu.Unlock()
+  return "",fail(500,"credential_access_error","Unable to inspect OAuth credential path")
+ }
  listener,err:=net.Listen("tcp","127.0.0.1:51121");if err!=nil{p.oauthMu.Unlock();return "",err}
  p.oauthActive=true;p.oauthMu.Unlock()
  state:=randomID();verifier:=randomID()+randomID()
