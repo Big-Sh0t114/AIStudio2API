@@ -19,6 +19,7 @@ import (
  "sort"
  "strings"
  "sync"
+ "sync/atomic"
  "time"
 )
 
@@ -274,12 +275,12 @@ func (p *Antigravity) StartOAuth(ctx context.Context) (string,error) {
  scopes:=strings.Join([]string{"https://www.googleapis.com/auth/cloud-platform","https://www.googleapis.com/auth/userinfo.email","https://www.googleapis.com/auth/userinfo.profile","https://www.googleapis.com/auth/cclog","https://www.googleapis.com/auth/experimentsandconfigs","https://www.googleapis.com/auth/aicode"}," ")
  query:=url.Values{"client_id":{p.clientID},"response_type":{"code"},"redirect_uri":{redirect},"scope":{scopes},"state":{state},"code_challenge":{challenge},"code_challenge_method":{"S256"},"access_type":{"offline"},"prompt":{"consent"}}
  server:=&http.Server{ReadHeaderTimeout:5*time.Second}
- done:=make(chan struct{})
+ var claimed atomic.Bool
  server.Handler=http.HandlerFunc(func(w http.ResponseWriter,r *http.Request) {
   if r.Method!="GET"||r.URL.Path!="/oauth-callback" {http.NotFound(w,r);return}
   if r.URL.Query().Get("state")!=state {http.Error(w,"Invalid OAuth state",http.StatusForbidden);return}
   code:=r.URL.Query().Get("code");if code==""{http.Error(w,"Missing authorization code",400);return}
-  select {case <-done:http.Error(w,"OAuth callback already processed",409);return;default:close(done)}
+  if !claimed.CompareAndSwap(false,true){http.Error(w,"OAuth callback already processed",409);return}
   defer func(){go func(){_ =server.Shutdown(context.Background())}()}()
   runctx,cancel:=context.WithTimeout(p.lifecycle,45*time.Second)
   defer cancel()
