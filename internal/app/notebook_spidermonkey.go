@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+    "strings"
 
 	"github.com/Mag1cFall/AIStudio2API/internal/aistudio"
 	"github.com/Mag1cFall/AIStudio2API/internal/notebook"
@@ -34,7 +35,20 @@ func (p *spiderNotebookPage) Navigate(_ context.Context, target string) error {
 func (p *spiderNotebookPage) Close() error { return nil }
 
 func (p *spiderNotebookPage) Fetch(ctx context.Context, method, target string, headers http.Header, body []byte) (notebook.HTTPResponse, error) {
-	status, result, err := p.worker.NotebookHTTP(ctx, method, target, headers, body)
+	var status int
+    var result []byte
+    var err error
+    if strings.HasPrefix(target, "https://gemini.google.com/") {
+        status, result, err = p.worker.GeminiWebHTTP(ctx, method, target, headers, body)
+        if errors.Is(err, aistudio.ErrGeminiWebAuthentication) {
+            return notebook.HTTPResponse{}, &notebook.APIError{
+                Status: 401, Code: "auth_required",
+                Message: "Gemini Web authentication expired for the linked Playground account",
+            }
+        }
+    } else {
+        status, result, err = p.worker.NotebookHTTP(ctx, method, target, headers, body)
+    }
 	if errors.Is(err, aistudio.ErrNotebookAuthentication) {
 		return notebook.HTTPResponse{}, &notebook.APIError{
 			Status: 401, Code: "auth_required",
