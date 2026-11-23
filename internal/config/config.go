@@ -239,7 +239,7 @@ type InvalidValue struct {
 }
 
 // secretKeys 是取值可能含凭据的配置键，无效时不记录原值
-var secretKeys = []string{"PROXY", "PROXY_API_KEY", "API_KEY_ACCOUNTS", "ADMIN_PASSWORD"}
+var secretKeys = []string{"PROXY", "PROXY_API_KEY", "API_KEY_ACCOUNTS", "ADMIN_PASSWORD", "ANTIGRAVITY_CLIENT_SECRET"}
 
 // invalidValue 返回无效配置项的记录，凭据键不带原值
 func invalidValue(key, value string, err error) InvalidValue {
