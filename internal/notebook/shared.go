@@ -19,6 +19,11 @@ type SharedPage interface {
 type HTTPPage interface {
 	Fetch(ctx context.Context, method, target string, headers http.Header, body []byte) (HTTPResponse, error)
 }
+// HTTPStreamPage delivers successful response body chunks during the read.
+type HTTPStreamPage interface {
+	FetchStream(ctx context.Context, method, target string, headers http.Header, body []byte, onChunk func([]byte) error) (int, error)
+}
+
 type HTTPResponse struct {
 	Status int
 	Body   []byte

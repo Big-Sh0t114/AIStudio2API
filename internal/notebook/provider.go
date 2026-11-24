@@ -25,6 +25,7 @@ type APIError struct {
 
 func (e *APIError) Error() string   { return e.Message }
 func (e *APIError) HTTPStatus() int { return e.Status }
+func (e *APIError) ErrorCode() string { return e.Code }
 
 type Window struct {
 	Window           string  `json:"window"`
@@ -447,7 +448,7 @@ func prepareConversation(messages []Message) (string, []any, error) {
 
 // chatSerial retains the original single-request browser lifecycle for
 // independent standalone Chrome accounts, which cannot safely share a CDP tab.
-func (p *Provider) chatSerial(ctx context.Context, model string, messages []Message) (Answer, error) {
+func (p *Provider) chatSerial(ctx context.Context, model string, messages []Message, emit func(string) error) (Answer, error) {
 	accountID, notebookID, err := splitModel(model)
 	if err != nil {
 		return Answer{}, err
@@ -471,7 +472,7 @@ func (p *Provider) chatSerial(ctx context.Context, model string, messages []Mess
 	err = p.ensureBrowser(ctx, a)
 	var ans Answer
 	if err == nil {
-		ans, err = p.chatLocked(ctx, a, notebookID, question, history)
+		ans, err = p.chatLocked(ctx, a, notebookID, question, history, emit)
 	}
 	if err != nil {
 		delete(a.sourceMetadata, notebookID)

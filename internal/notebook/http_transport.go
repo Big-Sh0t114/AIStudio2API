@@ -96,6 +96,10 @@ func (b *browser) loginInfo(ctx context.Context) (json.RawMessage, error) {
 }
 
 func (b *browser) executeHTTP(ctx context.Context, page HTTPPage, rpcID string, params any, sourcePath, path string) (browserResponse, error) {
+	return b.executeHTTPWithStream(ctx, page, rpcID, params, sourcePath, path, nil)
+}
+
+func (b *browser) executeHTTPWithStream(ctx context.Context, page HTTPPage, rpcID string, params any, sourcePath, path string, onChunk func([]byte) error) (browserResponse, error) {
 	meta, err := b.bootstrap(ctx, page)
 	if err != nil {
 		return browserResponse{}, err
@@ -137,7 +141,19 @@ func (b *browser) executeHTTP(ctx context.Context, page HTTPPage, rpcID string, 
 	header.Set("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
 	header.Set("X-Same-Domain", "1")
 	header.Set("Accept", "*/*")
-	response, err := page.Fetch(ctx, http.MethodPost, notebookOrigin+path+"?"+query.Encode(), header, []byte(data))
+	target := notebookOrigin + path + "?" + query.Encode()
+	if onChunk != nil {
+		stream, ok := page.(HTTPStreamPage)
+		if !ok {
+			return browserResponse{}, &APIError{Status: 501, Code: "unsupported_feature", Message: "Notebook direct transport does not provide streaming"}
+		}
+		status, err := stream.FetchStream(ctx, http.MethodPost, target, header, []byte(data), onChunk)
+		if status == http.StatusForbidden || status == http.StatusUnauthorized {
+			b.httpBootstrap = nil
+		}
+		return browserResponse{Status: status}, err
+	}
+	response, err := page.Fetch(ctx, http.MethodPost, target, header, []byte(data))
 	if err != nil {
 		return browserResponse{}, err
 	}

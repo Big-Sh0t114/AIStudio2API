@@ -186,6 +186,18 @@ func (p *Provider) markSourceCooldown(sourceID string, until time.Time) {
 // serialized CDP flow, and linked Playground accounts through bounded
 // concurrent, request-local Notebook sessions.
 func (p *Provider) Chat(ctx context.Context, model string, messages []Message) (Answer, error) {
+	return p.chat(ctx, model, messages, nil)
+}
+
+// StreamChat emits answer deltas during upstream reads; callback errors stop the stream.
+func (p *Provider) StreamChat(ctx context.Context, model string, messages []Message, emit func(string) error) (Answer, error) {
+	if emit == nil {
+		return Answer{}, errors.New("Notebook stream callback is required")
+	}
+	return p.chat(ctx, model, messages, emit)
+}
+
+func (p *Provider) chat(ctx context.Context, model string, messages []Message, emit func(string) error) (Answer, error) {
 	accountID, notebookID, err := splitModel(model)
 	if err != nil {
 		return Answer{}, err
@@ -205,7 +217,7 @@ func (p *Provider) Chat(ctx context.Context, model string, messages []Message) (
 	}
 	defer releaseDocument()
 	if sourceID == "" {
-		return p.chatSerial(ctx, model, messages)
+		return p.chatSerial(ctx, model, messages, emit)
 	}
 	question, history, err := prepareConversation(messages)
 	if err != nil {
@@ -217,7 +229,7 @@ func (p *Provider) Chat(ctx context.Context, model string, messages []Message) (
 		return Answer{}, err
 	}
 	defer done()
-	return p.chatLinked(ctx, a, sourceID, notebookID, question, history)
+	return p.chatLinked(ctx, a, sourceID, notebookID, question, history, emit)
 }
 
 // snapshotSourceMetadata creates an independent map for the request. Snapshots
@@ -230,7 +242,7 @@ func snapshotSourceMetadata(source map[string]notebookSourceSnapshot) map[string
 	return snapshot
 }
 
-func (p *Provider) chatLinked(ctx context.Context, a *account, sourceID, notebookID, question string, history []any) (Answer, error) {
+func (p *Provider) chatLinked(ctx context.Context, a *account, sourceID, notebookID, question string, history []any, emit func(string) error) (Answer, error) {
 	if err := ctx.Err(); err != nil {
 		return Answer{}, err
 	}
@@ -254,7 +266,7 @@ func (p *Provider) chatLinked(ctx context.Context, a *account, sourceID, noteboo
 	err := p.ensureBrowser(ctx, local)
 	var ans Answer
 	if err == nil {
-		ans, err = p.chatLocked(ctx, local, notebookID, question, history)
+		ans, err = p.chatLocked(ctx, local, notebookID, question, history, emit)
 	}
 	// Closing the request-local session also returns the Worker read lease and
 	// copies its transient HTTP bootstrap into local.httpBootstrap.

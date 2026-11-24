@@ -54,6 +54,20 @@ func (worker *NativeWorker) UsesSpiderMonkey() bool {
 // Playground worker. There is no Chrome, Camoufox tab, or second HTTP session.
 // The caller must hold its Playground worker lifecycle lease.
 func (worker *NativeWorker) NotebookHTTP(ctx context.Context, method, rawURL string, headers http.Header, body []byte) (int, []byte, error) {
+	return worker.notebookHTTP(ctx, method, rawURL, headers, body, nil)
+}
+
+// NotebookHTTPStream keeps the same authentication, origin and redirect checks
+// as ordinary Notebook HTTP while reading a successful response incrementally.
+func (worker *NativeWorker) NotebookHTTPStream(ctx context.Context, method, rawURL string, headers http.Header, body []byte, onChunk func([]byte) error) (int, error) {
+	if onChunk == nil {
+		return 0, errors.New("Notebook HTTP streaming callback is required")
+	}
+	status, _, err := worker.notebookHTTP(ctx, method, rawURL, headers, body, onChunk)
+	return status, err
+}
+
+func (worker *NativeWorker) notebookHTTP(ctx context.Context, method, rawURL string, headers http.Header, body []byte, onChunk func([]byte) error) (int, []byte, error) {
 	runtime, ok := worker.current().(*goWAARuntime)
 	if !ok {
 		return 0, nil, errors.New("Notebook direct HTTP transport requires a SpiderMonkey Playground worker")
@@ -135,6 +149,13 @@ func (worker *NativeWorker) NotebookHTTP(ctx context.Context, method, rawURL str
 			_ = response.Body.Close()
 			return 0, nil, ErrNotebookAuthentication
 		}
+		if onChunk != nil {
+			defer response.Body.Close()
+			if response.StatusCode < 200 || response.StatusCode >= 300 {
+				return response.StatusCode, nil, nil
+			}
+			return response.StatusCode, nil, readNotebookHTTPStream(ctx, response.Body, onChunk)
+		}
 		content, err := io.ReadAll(io.LimitReader(response.Body, notebookHTTPMaxResponseBytes+1))
 		closeErr := response.Body.Close()
 		if err != nil {
@@ -147,5 +168,31 @@ func (worker *NativeWorker) NotebookHTTP(ctx context.Context, method, rawURL str
 			return 0, nil, errors.New("Notebook HTTP response exceeds size limit")
 		}
 		return response.StatusCode, content, nil
+	}
+}
+
+func readNotebookHTTPStream(ctx context.Context, body io.Reader, onChunk func([]byte) error) error {
+	buffer := make([]byte, 16<<10)
+	total := 0
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		n, err := body.Read(buffer)
+		total += n
+		if total > notebookHTTPMaxResponseBytes {
+			return errors.New("Notebook HTTP response exceeds size limit")
+		}
+		if n > 0 {
+			if callbackErr := onChunk(buffer[:n]); callbackErr != nil {
+				return callbackErr
+			}
+		}
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("read Notebook HTTP stream: %w", err)
+		}
 	}
 }
