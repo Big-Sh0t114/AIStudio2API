@@ -153,6 +153,10 @@ func (p *concurrentNotebookPage) Evaluate(ctx context.Context, expression string
 	if !strings.Contains(expression, "sourcePath") {
 		return nil, errors.New("unexpected Notebook RPC")
 	}
+	if strings.Contains(expression, `"rpcid":"hPTbtc"`) {
+		frame, _ := json.Marshal([]any{[]any{"wrb.fr", listChatSessionsRPC, "[]", nil, nil, nil}})
+		return json.Marshal(browserResponse{Status: 200, Text: ")]}'\n" + string(frame)})
+	}
 	n := p.owner.active.Add(1)
 	for {
 		highest := p.owner.peak.Load()
@@ -195,18 +199,20 @@ func TestLinkedNotebookGenerationsRunInParallelWithIndependentPages(t *testing.T
 	a.status.State = "ready"
 	a.sourceMetadata = map[string]notebookSourceSnapshot{
 		"nb-1": {ids: []any{[]any{[]any{"source-id"}}}, titles: map[string]string{"source-id": "doc"}, expires: time.Now().Add(time.Minute)},
+		"nb-2": {ids: []any{[]any{[]any{"source-id"}}}, titles: map[string]string{"source-id": "doc"}, expires: time.Now().Add(time.Minute)},
+		"nb-3": {ids: []any{[]any{[]any{"source-id"}}}, titles: map[string]string{"source-id": "doc"}, expires: time.Now().Add(time.Minute)},
 	}
 	a.mu.Unlock()
-	model := "notebook:" + st.ID + ":nb-1"
+	models := []string{"notebook:"+st.ID+":nb-1", "notebook:"+st.ID+":nb-2", "notebook:"+st.ID+":nb-3"}
 	results := make(chan error, 3)
-	for i := 0; i < 3; i++ {
-		go func() {
+	for _, model := range models {
+		go func(model string) {
 			ans, err := p.Chat(context.Background(), model, []Message{{Role: "user", Content: "question"}})
 			if err == nil && ans.Text != "generated answer" {
 				err = errors.New("unexpected reply: " + ans.Text)
 			}
 			results <- err
-		}()
+		}(model)
 	}
 	// Two simultaneous Notebook calls must reach distinct page objects.
 	for i := 0; i < 2; i++ {

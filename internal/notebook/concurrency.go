@@ -197,6 +197,13 @@ func (p *Provider) Chat(ctx context.Context, model string, messages []Message) (
 	a.mu.Lock()
 	sourceID := a.status.SourceAccountID
 	a.mu.Unlock()
+	// Acquire the document gate before the source-wide gate or a browser lease.
+	// Even legacy aliases of a Notebook must not clear each other's active chats.
+	releaseDocument, err := p.acquireDocument(ctx, notebookID)
+	if err != nil {
+		return Answer{}, err
+	}
+	defer releaseDocument()
 	if sourceID == "" {
 		return p.chatSerial(ctx, model, messages)
 	}
