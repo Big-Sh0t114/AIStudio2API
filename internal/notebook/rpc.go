@@ -318,6 +318,11 @@ func (p *Provider) chatLocked(ctx context.Context, a *account, id, question stri
 		ids = []any{}
 	}
 	sourceFree := len(ids) == 0
+	// nil conversation_id reuses the upstream Notebook chat. Clear and verify
+	// that history before each generation; do not clear source documents or notes.
+	if err := p.resetConversation(ctx, a, id); err != nil {
+		return Answer{}, err
+	}
 	params := []any{ids, question, history, []any{2, nil, []any{1}, []any{1}}, nil, nil, nil, id, 1}
 	r, err := p.execute(ctx, a, "", params, sourcePath, chatPath)
 	if err != nil {

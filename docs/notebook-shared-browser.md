@@ -49,12 +49,24 @@ silent Chrome fallback** is performed for linked accounts of either backend.
 ## Conversations and metadata
 
 - Each Chat Completions request sends only its own OpenAI `messages`.
-- No Notebook conversation ID or server-side chat history is deliberately
-  shared across clients by AIStudio2API.
+- **Destructive history reset:** before generation, the proxy looks up the
+  selected Notebook's current conversation, deletes its existing chat turns,
+  and checks that the current session has no remaining history. This deletes
+  prior web UI chat history (including manually created messages), not sources,
+  notebooks, notes or Studio artifacts. Use dedicated API notebooks.
+- A context-aware, per-Notebook gate serializes the entire reset and generation
+  transaction across local account aliases. Different Notebook IDs retain
+  independent concurrency. A failed or unverified reset blocks generation.
+- The last generated turn stays visible until the next request. Browser tabs,
+  cookies and source metadata are still reused. Manual web UI chat or another
+  proxy process is not coordinated by this in-process gate.
+- The private RPC contracts are based on notebooklm-py: ListChatSessions
+  (hPTbtc), DeleteChatTurns (J7Gthc), and ListChatTurns (khqZz). Real account
+  validation remains necessary.
 - Notebook ready-source IDs and titles are cached for **60 seconds** per
   Notebook ID, with invalidation on refresh and upstream request errors.
 - The source catalog does not include prompts, chat history, or answers.
-- Notebook linked to Playground supports two concurrent calls per Google source, even across independent Notebook documents. Each request has an isolated borrowed page or SpiderMonkey HTTP adapter.
+- Linked Notebook accounts retain configurable per-source concurrency across different Notebook documents, but each document is single-flight.
 
 ## Limitations
 

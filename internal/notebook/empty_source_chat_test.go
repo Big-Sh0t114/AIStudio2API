@@ -17,6 +17,10 @@ type sourceFreeSessions struct {
 	chatCalls      int
 	sourceCalls    int
 	sourceArg      any
+	hasConversation bool
+	deleteCalls    int
+	deleteFailed   bool
+	retainHistory  bool
 }
 
 func (s *sourceFreeSessions) Sources(context.Context) ([]SourceAccount, error) {
@@ -49,8 +53,27 @@ func (p sourceFreePage) Evaluate(_ context.Context, expression string) (json.Raw
 		p.owner.sourceCalls++
 		payload, _ := json.Marshal([]any{[]any{"nb-empty", p.owner.sourceRows}})
 		frame = []any{"wrb.fr", "rLM1Ne", string(payload), nil, nil, nil}
+	} else if req.RPCID == listChatSessionsRPC {
+		payload := `[]`
+		if p.owner.hasConversation { payload = `[[["conversation-1"]]]` }
+		frame = []any{"wrb.fr", listChatSessionsRPC, payload, nil, nil, nil}
+	} else if req.RPCID == deleteChatTurnsRPC {
+		p.owner.deleteCalls++
+		if str(at(req.Params, 1)) != "conversation-1" {
+			p.owner.mu.Unlock()
+			return nil, errors.New("wrong conversation deletion target")
+		}
+		if p.owner.deleteFailed {
+			frame = []any{"wrb.fr", deleteChatTurnsRPC, nil, nil, nil, []any{3, "deletion rejected"}}
+		} else {
+			if !p.owner.retainHistory { p.owner.hasConversation = false }
+			frame = []any{"wrb.fr", deleteChatTurnsRPC, "null", nil, nil, nil}
+		}
+	} else if req.RPCID == listChatTurnsRPC {
+		frame = []any{"wrb.fr", listChatTurnsRPC, `[[["old message"]]]`, nil, nil, nil}
 	} else if req.RPCID == "" {
 		p.owner.chatCalls++
+		p.owner.hasConversation = true
 		if len(req.Params) < 2 {
 			p.owner.mu.Unlock()
 			return nil, errors.New("chat params too short")
@@ -110,7 +133,7 @@ func TestEmptyNotebookChatSendsExplicitEmptySourceArray(t *testing.T) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.chatCalls != 2 || s.sourceCalls != 1 {
+	if s.chatCalls != 2 || s.sourceCalls != 1 || s.deleteCalls != 1 {
 		t.Fatalf("source-free catalog not reused: chat=%d source=%d", s.chatCalls, s.sourceCalls)
 	}
 	ids, ok := s.sourceArg.([]any)
@@ -176,5 +199,16 @@ func TestEmptyNotebookHTTP400ReportsAgentProtocolGap(t *testing.T) {
 	}
 	if s.chatCalls != 1 {
 		t.Fatalf("unexpected source-free request count: %d", s.chatCalls)
+	}
+}
+
+func TestNotebookHistoryResetFailurePreventsGeneration(t *testing.T) {
+	for _, retain := range []bool{false, true} {
+		s := &sourceFreeSessions{sourceRows: []any{}, hasConversation: true, deleteFailed: !retain, retainHistory: retain}
+		p, a := newSourceFreeProvider(t, s)
+		_, err := p.Chat(context.Background(), "notebook:"+a.ID+":nb-empty", []Message{{Role:"user", Content:"new question"}})
+		if err == nil || s.deleteCalls != 1 || s.chatCalls != 0 {
+			t.Fatalf("unsafe generation after failed reset: err=%v deletes=%d chats=%d", err, s.deleteCalls, s.chatCalls)
+		}
 	}
 }

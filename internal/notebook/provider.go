@@ -96,6 +96,8 @@ type Provider struct {
 	shared          SharedSessions
 	gates           map[string]*notebookGate // bounded per-Playground-source concurrency
 	concurrentLimit int
+	// documentGates serialize history deletion and generation for the same Notebook ID.
+	documentGates map[string]*notebookDocumentGate
 }
 
 func New(root string) *Provider {
