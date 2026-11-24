@@ -72,7 +72,7 @@ silent Chrome fallback** is performed for linked accounts of either backend.
 
 - Page leasing and selection are now shared, but Playground's WAA-specific
   runtime implementation is intentionally retained to avoid regressions.
-- Notebook native streaming is not included. Linked accounts now allow up to two simultaneous page/HTTP requests; independent standalone Chrome accounts remain serialized.
+- Notebook supports native OpenAI Chat Completions SSE. Linked accounts now allow up to two simultaneous page/HTTP requests; independent standalone Chrome accounts remain serialized.
 - The Google Notebook private RPC may change; real Google sign-in and actual
   latency/memory improvements still need end-to-end validation on Windows.
 - Worker pool capacity and separate service quotas remain controlled by
@@ -252,3 +252,25 @@ Notebook had exactly zero sources.
   requests, no-source caching, upstream denial, and preserving ready-source
   requirements on nonempty notebooks. It has not been tested against a live
   Google Pro account in CI; verify the actual response on Windows.
+
+## Native NotebookLM streaming (experimental)
+
+- Set `stream: true` on POST /v1/chat/completions. The text-only and n=1
+  limitations remain. Non-streaming requests retain their existing path.
+- Camoufox/standalone Chrome use the borrowed page's Fetch ReadableStream
+  and an incremental TextDecoder. SpiderMonkey uses the existing worker HTTP
+  client and emits successful body reads without buffering the whole response.
+- A shared incremental parser accepts newline-delimited batchexecute frames,
+  emits suffixes of marked cumulative answer text, excludes thought-only
+  records, and appends the existing source citation suffix. Legacy unmarked
+  answers are withheld until completion. A final revision of already
+  emitted content or a missing final marker is a stream error, not success.
+- Uses existing OpenAI SSE chunk/heartbeat helpers. Errors before first text
+  remain HTTP errors; errors after the stream opens are SSE error frames.
+  Optional stream_options.include_usage emits explicitly estimated usage.
+- The document gate remains held during upstream reads and callbacks, including
+  history reset. Cancellation aborts the browser fetch or closes the HTTP body.
+  Cancellation of an upstream server-side generation cannot be guaranteed.
+- No new browser instances or per-token browser tabs are introduced. Actual
+  chunk cadence and private Google framing need live testing with a signed-in
+  account; a legacy/unmarked response may not show text until completion.

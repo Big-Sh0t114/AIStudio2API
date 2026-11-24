@@ -35,22 +35,28 @@ func (p *spiderNotebookPage) Close() error { return nil }
 
 func (p *spiderNotebookPage) Fetch(ctx context.Context, method, target string, headers http.Header, body []byte) (notebook.HTTPResponse, error) {
 	status, result, err := p.worker.NotebookHTTP(ctx, method, target, headers, body)
+	return notebook.HTTPResponse{Status: status, Body: result}, notebookTransportError(err)
+}
+
+func (p *spiderNotebookPage) FetchStream(ctx context.Context, method, target string, headers http.Header, body []byte, onChunk func([]byte) error) (int, error) {
+	status, err := p.worker.NotebookHTTPStream(ctx, method, target, headers, body, onChunk)
+	return status, notebookTransportError(err)
+}
+
+func notebookTransportError(err error) error {
 	if errors.Is(err, aistudio.ErrNotebookAuthentication) {
-		return notebook.HTTPResponse{}, &notebook.APIError{
+		return &notebook.APIError{
 			Status: 401, Code: "auth_required",
 			Message: "Google could not complete NotebookLM sign-in with this Playground session after attempting cookie renewal; refresh the Google account authentication or use standalone Notebook Chrome login",
 		}
 	}
 	if errors.Is(err, aistudio.ErrNotebookRedirect) {
-		return notebook.HTTPResponse{}, &notebook.APIError{
+		return &notebook.APIError{
 			Status: 502, Code: "notebook_redirect",
 			Message: err.Error(),
 		}
 	}
-	if err != nil {
-		return notebook.HTTPResponse{}, err
-	}
-	return notebook.HTTPResponse{Status: status, Body: result}, nil
+	return err
 }
 
 // The existing notebookSharedPage retains the Playground worker's lifecycle
@@ -60,4 +66,8 @@ type notebookSharedHTTPPage struct{ *notebookSharedPage }
 
 func (p *notebookSharedHTTPPage) Fetch(ctx context.Context, method, target string, headers http.Header, body []byte) (notebook.HTTPResponse, error) {
 	return p.SharedPage.(notebook.HTTPPage).Fetch(ctx, method, target, headers, body)
+}
+
+func (p *notebookSharedHTTPPage) FetchStream(ctx context.Context, method, target string, headers http.Header, body []byte, onChunk func([]byte) error) (int, error) {
+	return p.SharedPage.(notebook.HTTPStreamPage).FetchStream(ctx, method, target, headers, body, onChunk)
 }

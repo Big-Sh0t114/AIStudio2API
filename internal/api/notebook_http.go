@@ -120,6 +120,7 @@ func (s *server) handleNotebookOrChat(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Model    string `json:"model"`
 		Stream   bool   `json:"stream"`
+		StreamOptions chatStreamOptions `json:"stream_options"`
 		Messages []struct {
 			Role    string          `json:"role"`
 			Content json.RawMessage `json:"content"`
@@ -133,10 +134,6 @@ func (s *server) handleNotebookOrChat(w http.ResponseWriter, r *http.Request) {
 	}
 	if !s.notebookAuthorized(r, input.Model) {
 		writeOpenAIError(w, 403, "permission_denied", "Notebook account is not accessible with this API key, or login needs refreshing")
-		return
-	}
-	if input.Stream {
-		writeOpenAIError(w, 400, "unsupported_feature", "Notebook backend supports only stream=false")
 		return
 	}
 	if len(input.Tools) > 0 {
@@ -168,23 +165,17 @@ func (s *server) handleNotebookOrChat(w http.ResponseWriter, r *http.Request) {
 	SetAccessLogTextInput(r.Context(), len(messages), characters)
 	SetAccessLogTarget(r.Context(), input.Model, "notebook:"+accountID)
 	StartAccessLog(r.Context())
+	if input.Stream {
+		s.streamNotebookChat(w, r, input.Model, messages, input.StreamOptions.IncludeUsage)
+		return
+	}
 	ans, err := s.config.Notebook.Chat(r.Context(), input.Model, messages)
 	if err != nil {
 		SetAccessLogError(r.Context(), err)
 		writeNotebookError(w, err)
 		return
 	}
-	content := ans.Text
-	if len(ans.Citations) > 0 {
-		content += "\n\nSources:"
-		for _, c := range ans.Citations {
-			name := c.SourceTitle
-			if name == "" {
-				name = c.SourceID
-			}
-			content += fmt.Sprintf("\n[%d] %s", c.Number, name)
-		}
-	}
+	content := ans.Text + notebookCitationSuffix(ans.Citations)
 	usage := notebookTextUsage(messages, content)
 	SetAccessLogGenerationResult(r.Context(), usage, 0)
 	SetAccessLogFinishReason(r.Context(), "stop")

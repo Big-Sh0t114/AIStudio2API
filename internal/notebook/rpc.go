@@ -49,16 +49,20 @@ func (p *Provider) execute(ctx context.Context, a *account, rpcID string, params
 			return result, err
 		}
 	}
+	return result, notebookResponseError(result)
+}
+
+func notebookResponseError(result browserResponse) error {
 	if result.SignedOut || result.Status == 401 {
-		return result, &APIError{Status: 401, Code: "auth_required", Message: "Notebook sign-in expired; reconnect the linked Google account"}
+		return &APIError{Status: 401, Code: "auth_required", Message: "Notebook sign-in expired; reconnect the linked Google account"}
 	}
 	if result.Status == 429 {
-		return result, &APIError{Status: 429, Code: "rate_limit_exceeded", Message: "Notebook HTTP 429", RetryAt: time.Now().Add(10 * time.Minute)}
+		return &APIError{Status: 429, Code: "rate_limit_exceeded", Message: "Notebook HTTP 429", RetryAt: time.Now().Add(10 * time.Minute)}
 	}
-	if result.Status >= 400 {
-		return result, &APIError{Status: 502, Code: "upstream_error", Message: fmt.Sprintf("Notebook returned HTTP %d", result.Status)}
+	if result.Status < 200 || result.Status >= 300 {
+		return &APIError{Status: 502, Code: "upstream_error", Message: fmt.Sprintf("Notebook returned HTTP %d", result.Status)}
 	}
-	return result, nil
+	return nil
 }
 func parseFrames(body string) [][]any {
 	var result [][]any
@@ -304,7 +308,7 @@ func sourceFreeUnavailable() *APIError {
 	}
 }
 
-func (p *Provider) chatLocked(ctx context.Context, a *account, id, question string, history []any) (Answer, error) {
+func (p *Provider) chatLocked(ctx context.Context, a *account, id, question string, history []any, emit func(string) error) (Answer, error) {
 	sourcePath := "/notebook/" + id
 	ids, titles, err := p.readySources(ctx, a, id)
 	if err != nil {
@@ -324,6 +328,14 @@ func (p *Provider) chatLocked(ctx context.Context, a *account, id, question stri
 		return Answer{}, err
 	}
 	params := []any{ids, question, history, []any{2, nil, []any{1}, []any{1}}, nil, nil, nil, id, 1}
+	if emit != nil {
+		out, err := p.streamAnswer(ctx, a, params, sourcePath, titles, emit)
+		var api *APIError
+		if sourceFree && errors.As(err, &api) && (api.Code == "invalid_request" || (api.Code == "upstream_error" && strings.Contains(api.Message, "HTTP 400"))) {
+			return Answer{}, sourceFreeUnavailable()
+		}
+		return out, err
+	}
 	r, err := p.execute(ctx, a, "", params, sourcePath, chatPath)
 	if err != nil {
 		var api *APIError
