@@ -19,6 +19,7 @@ import (
 
 	"github.com/Mag1cFall/AIStudio2API/internal/api"
 	"github.com/Mag1cFall/AIStudio2API/internal/config"
+	"github.com/Mag1cFall/AIStudio2API/internal/alternate"
 	"github.com/Mag1cFall/AIStudio2API/internal/i18n"
 	"github.com/Mag1cFall/AIStudio2API/internal/notebook"
 	"github.com/Mag1cFall/AIStudio2API/internal/promptdb"
@@ -264,7 +265,9 @@ func runServer(ctx context.Context, cfg config.Config, manager *runtimeManager, 
 	}
 	manager.previewAddress = previewListener.Addr().String()
 	manager.settings.Store(requestSettingsOf(manager.currentConfig()))
-	notebookProvider := notebook.NewWithShared(filepath.Join("runtime", "notebook"), &notebookSharedSessions{manager: manager})
+	shared := &notebookSharedSessions{manager: manager}
+	notebookProvider := notebook.NewWithShared(filepath.Join("runtime", "notebook"), shared)
+	altProvider := alternate.New(alternate.Config{OAuthFile:cfg.AntigravityOAuthFile,ClientID:cfg.AntigravityClientID,ClientSecret:cfg.AntigravityClientSecret,ProjectID:cfg.AntigravityProjectID,ProxyURL:cfg.Proxy,Sources:alternateSources{shared:shared},Lifecycle:ctx})
 	defer notebookProvider.Close()
 	apiHandler := api.NewHandler(manager, api.Config{
 		APIKey: cfg.ProxyAPIKey, Admin: manager, Ledger: manager.ledger, Prompts: manager.prompts, Updates: updater,
@@ -273,7 +276,19 @@ func runServer(ctx context.Context, cfg config.Config, manager *runtimeManager, 
 		MediaDir:         filepath.Join("runtime", "media"), MediaLimit: mediaLimit, MediaLinks: manager.mediaLinks,
 		ResponseModes: manager.responseModes, WaitLaunch: manager.WaitLaunch,
 		SearchSettings: manager.searchSettings, EgressProxy: manager.egressProxy, States: manager.states,
-		PickPath: manager.pickPath, Notebook: notebookProvider,
+		PickPath: manager.pickPath, Notebook: notebookProvider, Alternate:altProvider,
+		AlternateAuthorized: func(key, sourceID string) bool {
+			current := manager.currentConfig()
+			bound := apiKeyAccounts(current.ProxyAPIKey, current.APIKeyAccounts, current)
+			allowed, restricted := bound[key]
+			if !restricted {return true}
+			accounts,_:=manager.Accounts(ctx)
+			for _,expected:=range allowed {
+				if strings.EqualFold(expected,sourceID) {return true}
+				for _,a:=range accounts {if a.ID==sourceID && strings.EqualFold(expected,a.Label) {return true}}
+			}
+			return false
+		},
 		NotebookAuthorized: func(key, email string) bool {
 			current := manager.currentConfig()
 			bound := apiKeyAccounts(current.ProxyAPIKey, current.APIKeyAccounts, current)

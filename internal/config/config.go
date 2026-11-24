@@ -75,6 +75,10 @@ var configKeys = [...]string{
 	"REPLY_TOOL",
 	"USER_MESSAGE_REWRITE",
 	"THINKING_GUARD",
+	"ANTIGRAVITY_OAUTH_FILE",
+	"ANTIGRAVITY_CLIENT_ID",
+	"ANTIGRAVITY_CLIENT_SECRET",
+	"ANTIGRAVITY_PROJECT_ID",
 }
 
 // LogFileMB 是单个日志文件的轮转大小
@@ -151,6 +155,10 @@ type Config struct {
 	ReplyTool              bool
 	UserMessageRewrite     string
 	ThinkingGuard          bool
+	AntigravityOAuthFile string
+	AntigravityClientID string
+	AntigravityClientSecret string
+	AntigravityProjectID string
 	AuthStates             string
 	ListenAddr             string
 	PreviewListenAddr      string
@@ -231,7 +239,7 @@ type InvalidValue struct {
 }
 
 // secretKeys 是取值可能含凭据的配置键，无效时不记录原值
-var secretKeys = []string{"PROXY", "PROXY_API_KEY", "API_KEY_ACCOUNTS", "ADMIN_PASSWORD"}
+var secretKeys = []string{"PROXY", "PROXY_API_KEY", "API_KEY_ACCOUNTS", "ADMIN_PASSWORD", "ANTIGRAVITY_CLIENT_SECRET"}
 
 // invalidValue 返回无效配置项的记录，凭据键不带原值
 func invalidValue(key, value string, err error) InvalidValue {
@@ -260,6 +268,10 @@ var configSetters = map[string]func(*Config, string) error{
 	"REPLY_TOOL":                boolSetter("REPLY_TOOL", func(c *Config) *bool { return &c.ReplyTool }),
 	"USER_MESSAGE_REWRITE":      textSetter(func(c *Config) *string { return &c.UserMessageRewrite }, lowerTrim),
 	"THINKING_GUARD":            boolSetter("THINKING_GUARD", func(c *Config) *bool { return &c.ThinkingGuard }),
+	"ANTIGRAVITY_OAUTH_FILE": textSetter(func(c *Config) *string {return &c.AntigravityOAuthFile},strings.TrimSpace),
+	"ANTIGRAVITY_CLIENT_ID": textSetter(func(c *Config) *string {return &c.AntigravityClientID},strings.TrimSpace),
+	"ANTIGRAVITY_CLIENT_SECRET": textSetter(func(c *Config) *string {return &c.AntigravityClientSecret},strings.TrimSpace),
+	"ANTIGRAVITY_PROJECT_ID": textSetter(func(c *Config) *string {return &c.AntigravityProjectID},strings.TrimSpace),
 	"LOG_MAX_TOTAL_MB":         intSetter("LOG_MAX_TOTAL_MB", func(c *Config) *int { return &c.LogMaxTotalMB }),
 	"WARM_WORKER_LIMIT":        intSetter("WARM_WORKER_LIMIT", func(c *Config) *int { return &c.WarmWorkerLimit }),
 	"MAX_ACTIVE_WORKERS":       intSetter("MAX_ACTIVE_WORKERS", func(c *Config) *int { return &c.MaxActiveWorkers }),
@@ -654,6 +666,10 @@ func (c Config) envValues() map[string]string {
 		"REPLY_TOOL":                strconv.FormatBool(c.ReplyTool),
 		"USER_MESSAGE_REWRITE":      c.UserMessageRewrite,
 		"THINKING_GUARD":            strconv.FormatBool(c.ThinkingGuard),
+		"ANTIGRAVITY_OAUTH_FILE": c.AntigravityOAuthFile,
+		"ANTIGRAVITY_CLIENT_ID": c.AntigravityClientID,
+		"ANTIGRAVITY_CLIENT_SECRET": c.AntigravityClientSecret,
+		"ANTIGRAVITY_PROJECT_ID": c.AntigravityProjectID,
 		"AISTUDIO_AUTH_STATES":     c.AuthStates,
 		"LISTEN_ADDR":              c.ListenAddr,
 		"PREVIEW_LISTEN_ADDR":      c.PreviewListenAddr,
