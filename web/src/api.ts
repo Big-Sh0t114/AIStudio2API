@@ -75,7 +75,6 @@ export interface PlaygroundSource {
   state: string
 }
 
-
 interface CooldownsResponse {
   cooldowns: Cooldown[]
 }
