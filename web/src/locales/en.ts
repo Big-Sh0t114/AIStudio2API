@@ -99,6 +99,8 @@ export const messages: Record<TranslationKey, string> = {
   'providers.copy': "Copy model ID",
   'providers.copyFailed': "Copy failed. Select and copy the model ID manually.",
   'providers.antigravityModels': "Antigravity models",
+  'providers.notConfigured': "Not configured",
+  'providers.restartPending': "Saved settings are not active in this process yet. Restart AIStudio2API before starting OAuth.",
   'nav.version': 'Version',
   'section.version.title': 'Version & updates',
   'section.version.description': 'Check the running version and update online from GitHub releases',
