@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { api, type AlternateModel, type AlternateStatus, type PlaygroundSource } from '@/api'
 import { useI18n } from '@/i18n'
 import type { ServiceConfig } from '@/types'
@@ -176,6 +176,7 @@ async function copyModel(id: string): Promise<void> {
 }
 
 onMounted(refreshAll)
+onActivated(refreshAll)
 onUnmounted(stopOAuthPolling)
 </script>
 
