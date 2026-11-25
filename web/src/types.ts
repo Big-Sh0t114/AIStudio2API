@@ -3,6 +3,8 @@ export type Locale = 'zh-CN' | 'zh-TW' | 'en' | 'ja' | 'ko' | 'fr' | 'de'
 export type TabID =
   | 'logs'
   | 'accounts'
+  | 'providers'
+  | 'services'
   | 'access'
   | 'models'
   | 'providers'
