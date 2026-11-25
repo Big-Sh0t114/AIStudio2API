@@ -245,7 +245,10 @@ onUnmounted(stopOAuthPolling)
       </p>
 
       <div class="grid gap-4">
-        <article v-if="service === 'antigravity'" class="min-w-0 rounded-lg border border-line bg-panel p-4">
+        <article
+          v-if="service === 'antigravity'"
+          class="min-w-0 rounded-lg border border-line bg-panel p-4"
+        >
           <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 class="text-base font-semibold text-white">
