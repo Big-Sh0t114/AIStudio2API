@@ -156,6 +156,8 @@ func NewHandler(service aistudio.Service, config Config) http.Handler {
 	control := http.NewServeMux()
 	control.HandleFunc("GET /api/status", s.handleStatus)
 	control.HandleFunc("GET /api/models", s.handleAdminModels)
+	control.HandleFunc("GET /api/alternate/status", s.handleAlternateStatus)
+	control.HandleFunc("GET /api/alternate/models", s.handleAlternateModels)
 	control.HandleFunc("POST /api/alternate/antigravity/oauth/start", s.handleAlternateOAuth)
 	control.HandleFunc("GET /api/notebook/sources", s.handleNotebookSources)
 	control.HandleFunc("GET /api/notebook/settings", s.handleNotebookSettings)
