@@ -131,6 +131,24 @@ func (s *server) handleAlternateOrModel(w http.ResponseWriter,r *http.Request) {
  }
  writeOpenAIError(w,404,"model_not_found","Alternate model not available for current account")
 }
+func (s *server) handleAlternateStatus(w http.ResponseWriter, r *http.Request) {
+	if s.config.Alternate == nil {
+		writeOpenAIError(w, 503, "not_configured", "Alternate providers are disabled")
+		return
+	}
+	writeJSON(w, 200, map[string]any{
+		"antigravity": s.config.Alternate.AntigravityStatus(),
+	})
+}
+
+func (s *server) handleAlternateModels(w http.ResponseWriter, r *http.Request) {
+	if s.config.Alternate == nil {
+		writeOpenAIError(w, 503, "not_configured", "Alternate providers are disabled")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"models": s.config.Alternate.Models(r.Context())})
+}
+
 func (s *server) handleAlternateOAuth(w http.ResponseWriter,r *http.Request) {
  // AdminAuthEnabled must be true so credentials cannot be reissued from an
  // accidentally public management UI.
