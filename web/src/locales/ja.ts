@@ -99,6 +99,8 @@ export const messages: Record<TranslationKey, string> = {
   'providers.copy': "モデル ID をコピー",
   'providers.copyFailed': "コピーできませんでした。モデル ID を手動でコピーしてください。",
   'providers.antigravityModels': "Antigravity モデル",
+  'providers.notConfigured': "未設定",
+  'providers.restartPending': "設定は保存されていますが、このプロセスにはまだ反映されていません。OAuth を開始する前に AIStudio2API を再起動してください。",
   'nav.version': 'バージョン',
   'section.version.title': 'バージョンと更新',
   'section.version.description':
