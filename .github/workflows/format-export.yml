@@ -1,0 +1,36 @@
+name: Export formatted provider UI source
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - web/src/api.ts
+      - web/src/components/ProvidersPanel.vue
+      - web/src/locales/**
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.18.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Format provider UI files
+        working-directory: web
+        run: |
+          npm ci
+          npx vp fmt src/api.ts src/components/ProvidersPanel.vue src/locales/*.ts
+          cd ..
+          tar -czf formatted-provider-ui.tar.gz web/src/api.ts web/src/components/ProvidersPanel.vue web/src/locales/*.ts
+      - uses: actions/upload-artifact@v7
+        with:
+          name: formatted-provider-ui-source
+          path: formatted-provider-ui.tar.gz
+          if-no-files-found: error
+          retention-days: 1
