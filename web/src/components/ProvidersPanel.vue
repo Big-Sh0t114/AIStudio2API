@@ -23,7 +23,7 @@ const refreshing = ref(false)
 const status = ref<AlternateStatus | null>(null)
 const models = ref<AlternateModel[]>([])
 const sources = ref<PlaygroundSource[]>([])
-const error = ref('')
+const panelError = ref('')
 const notice = ref('')
 const authorizationURL = ref('')
 const copied = ref('')
@@ -62,7 +62,7 @@ async function refreshStatus(): Promise<void> {
 }
 async function refreshAll(): Promise<void> {
   refreshing.value = true
-  error.value = ''
+  panelError.value = ''
   try {
     const results = await Promise.allSettled([
       api.alternateStatus(),
