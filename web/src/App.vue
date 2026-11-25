@@ -60,7 +60,6 @@ const validTabs: TabID[] = [
   'requests',
   'usage',
   'settings',
-  'providers',
   'version',
 ]
 const { tab: currentTab, select: selectTab } = useTabParam(validTabs, 'logs')
