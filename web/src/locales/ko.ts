@@ -68,7 +68,8 @@ export const messages: Record<TranslationKey, string> = {
   'nav.playground': 'API 체험',
   'nav.services': '서비스 관리',
   'services.title': '업스트림 서비스 관리',
-  'services.description': 'NotebookLM, Gemini Chat, Antigravity 및 AI Studio Playground의 계정, 인증, 모델 목록을 한곳에서 관리합니다.',
+  'services.description':
+    'NotebookLM, Gemini Chat, Antigravity 및 AI Studio Playground의 계정, 인증, 모델 목록을 한곳에서 관리합니다.',
   'services.notebook': 'NotebookLM',
   'services.geminiChat': 'Gemini Chat',
   'services.antigravity': 'Antigravity',
@@ -81,7 +82,8 @@ export const messages: Record<TranslationKey, string> = {
   'providers.antigravityDescription':
     'OAuth로 Google Cloud Code에 로그인하고 해당 계정의 모델 목록을 가져옵니다.',
   'providers.geminiWebTitle': 'Gemini Chat',
-  'providers.geminiWebDescription': '기존 Playground 로그인 세션으로 Gemini 웹 Chat을 사용하며 모델은 소스 계정별로 표시됩니다.',
+  'providers.geminiWebDescription':
+    '기존 Playground 로그인 세션으로 Gemini 웹 Chat을 사용하며 모델은 소스 계정별로 표시됩니다.',
   'providers.oauthFile': 'OAuth 자격 증명 파일 경로',
   'providers.clientID': 'OAuth Client ID',
   'providers.clientSecret': 'OAuth Client Secret',
@@ -100,7 +102,8 @@ export const messages: Record<TranslationKey, string> = {
   'providers.models': '모델',
   'providers.noModels': '모델이 없습니다. 인증 상태를 확인하거나 목록을 새로고침하세요.',
   'providers.sources': '소스 계정',
-  'providers.noSources': '사용 가능한 Playground 소스 계정이 없습니다. 서비스 관리 → AI Studio Playground에서 Google 계정을 추가하고 로그인하세요.',
+  'providers.noSources':
+    '사용 가능한 Playground 소스 계정이 없습니다. 서비스 관리 → AI Studio Playground에서 Google 계정을 추가하고 로그인하세요.',
   'providers.oauthHint':
     '로컬 OAuth 콜백이 시작되었습니다. 열린 Google 페이지에서 인증을 완료하세요.',
   'providers.openAuthorization': '인증 페이지가 자동으로 열리지 않으면 여기를 클릭하세요.',
