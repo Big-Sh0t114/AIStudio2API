@@ -5,13 +5,26 @@ import { useI18n } from '@/i18n'
 import type { ServiceConfig } from '@/types'
 import UiIcon from './UiIcon.vue'
 
-const props = defineProps<{ config: ServiceConfig | null; loading: boolean; error: string }>()
+const props = defineProps<{
+  service: 'gemini-chat' | 'antigravity'
+  config: ServiceConfig | null
+  loading: boolean
+  error: string
+}>()
 const emit = defineEmits<{
   saved: [config: ServiceConfig]
   notice: [message: string, tone: 'success' | 'error']
   settings: []
 }>()
 const { t, errorText } = useI18n()
+const serviceTitle = computed(() =>
+  props.service === 'antigravity' ? t('providers.antigravityTitle') : t('providers.geminiWebTitle'),
+)
+const serviceDescription = computed(() =>
+  props.service === 'antigravity'
+    ? t('providers.antigravityDescription')
+    : t('providers.geminiWebDescription'),
+)
 
 const oauthFile = ref('runtime/antigravity/oauth.json')
 const clientID = ref('')
@@ -191,8 +204,8 @@ onUnmounted(stopOAuthPolling)
 <template>
   <section class="flex min-h-0 flex-1 flex-col">
     <header class="page-x border-b border-line py-4">
-      <h2 class="text-xl font-semibold text-white">{{ t('providers.title') }}</h2>
-      <p class="mt-1 text-sm text-gray-500">{{ t('providers.description') }}</p>
+      <h2 class="text-xl font-semibold text-white">{{ serviceTitle }}</h2>
+      <p class="mt-1 text-sm text-gray-500">{{ serviceDescription }}</p>
     </header>
 
     <div class="min-h-0 flex-1 overflow-auto page-x py-5">
@@ -231,8 +244,8 @@ onUnmounted(stopOAuthPolling)
         {{ notice }}
       </p>
 
-      <div class="grid gap-4 2xl:grid-cols-2">
-        <article class="min-w-0 rounded-lg border border-line bg-panel p-4">
+      <div class="grid gap-4">
+        <article v-if="service === 'antigravity'" class="min-w-0 rounded-lg border border-line bg-panel p-4">
           <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 class="text-base font-semibold text-white">
@@ -402,7 +415,7 @@ onUnmounted(stopOAuthPolling)
           </div>
         </article>
 
-        <article class="min-w-0 rounded-lg border border-line bg-panel p-4">
+        <article v-else class="min-w-0 rounded-lg border border-line bg-panel p-4">
           <div class="mb-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h3 class="text-base font-semibold text-white">
