@@ -1719,6 +1719,10 @@ func (admin *runtimeAdmin) UpdateRuntimeConfig(_ context.Context, value api.Runt
 	if err != nil {
 		return api.RuntimeConfig{}, invalidConfigError(fmt.Errorf("REQUEST_TIMEOUT 无效: %w", err))
 	}
+	antigravityClientSecret := saved.AntigravityClientSecret
+	if value.AntigravityClientSecret != nil {
+		antigravityClientSecret = *value.AntigravityClientSecret
+	}
 	cfg := config.Config{
 		AutoStart:      value.AutoStart,
 		HideDockIcon:   value.HideDockIcon,
@@ -1731,7 +1735,10 @@ func (admin *runtimeAdmin) UpdateRuntimeConfig(_ context.Context, value api.Runt
 		ContinuationRewrite: value.ContinuationRewrite, ContinuationPrompt: strings.TrimSpace(value.ContinuationPrompt),
 		ReplyTool: value.ReplyTool, UserMessageRewrite: strings.ToLower(strings.TrimSpace(value.UserMessageRewrite)), ThinkingGuard: value.ThinkingGuard,
 		FirstEventHedge: strings.ToLower(strings.TrimSpace(value.FirstEventHedge)), FirstEventHedgeModels: strings.TrimSpace(value.FirstEventHedgeModels), FirstEventTimeout: strings.ToLower(strings.TrimSpace(value.FirstEventTimeout)), AuthStates: value.AuthStates, ListenAddr: value.ListenAddr, PreviewListenAddr: value.PreviewListenAddr,
-		ProxyAPIKey: value.APIKey, Proxy: value.Proxy, InitTimeout: initTimeout, RequestTimeout: requestTimeout,
+		ProxyAPIKey: value.APIKey, Proxy: value.Proxy,
+		AntigravityOAuthFile: strings.TrimSpace(value.AntigravityOAuthFile), AntigravityClientID: strings.TrimSpace(value.AntigravityClientID),
+		AntigravityClientSecret: antigravityClientSecret, AntigravityProjectID: strings.TrimSpace(value.AntigravityProjectID),
+		InitTimeout: initTimeout, RequestTimeout: requestTimeout,
 		WarmWorkerLimit: value.WarmWorkerLimit, MaxActiveWorkers: value.MaxActiveWorkers,
 		WarmStartupConcurrency: value.WarmStartupConcurrency,
 		PerAccountConcurrency:  value.PerAccountConcurrency,
@@ -2087,7 +2094,9 @@ func runtimeConfigDTO(cfg config.Config) api.RuntimeConfig {
 		FirstEventHedge: cfg.FirstEventHedge, FirstEventHedgeModels: cfg.FirstEventHedgeModels, FirstEventTimeout: cfg.FirstEventTimeout, AuthStates: cfg.AuthStates, ListenAddr: cfg.ListenAddr, APIKey: cfg.ProxyAPIKey,
 		ActiveListenAddr: cfg.ListenAddr, ActiveAPIKey: cfg.ProxyAPIKey,
 		PreviewListenAddr: cfg.PreviewListenAddr, ActivePreviewListenAddr: cfg.PreviewListenAddr,
-		Proxy: cfg.Proxy, InitTimeout: cfg.InitTimeout.String(), RequestTimeout: cfg.RequestTimeout.String(),
+		Proxy: cfg.Proxy, AntigravityOAuthFile: cfg.AntigravityOAuthFile, AntigravityClientID: cfg.AntigravityClientID,
+		AntigravityClientSecretSet: cfg.AntigravityClientSecret != "", SavedAntigravityClientSecret: cfg.AntigravityClientSecret,
+		AntigravityProjectID: cfg.AntigravityProjectID, InitTimeout: cfg.InitTimeout.String(), RequestTimeout: cfg.RequestTimeout.String(),
 		WarmWorkerLimit: cfg.WarmWorkerLimit, MaxActiveWorkers: cfg.MaxActiveWorkers,
 		WarmStartupConcurrency: cfg.WarmStartupConcurrency,
 		PerAccountConcurrency:  cfg.PerAccountConcurrency,
