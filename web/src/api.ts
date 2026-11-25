@@ -167,9 +167,9 @@ export const api = {
   models: async () => (await requestJSON<ModelsResponse>('/api/models')).models,
   alternateStatus: () => requestJSON<AlternateStatus>('/api/alternate/status'),
   alternateModels: async () =>
-    (await requestJSON<{ models: AlternateModel[] }>('/api/alternate/models')).models,
+    ((await requestJSON<{ models?: AlternateModel[] | null }>('/api/alternate/models')).models ?? []),
   notebookSources: async () =>
-    (await requestJSON<{ sources: PlaygroundSource[] }>('/api/notebook/sources')).sources,
+    ((await requestJSON<{ sources?: PlaygroundSource[] | null }>('/api/notebook/sources')).sources ?? []),
   startAntigravityOAuth: () =>
     requestJSON<{ authorization_url: string; callback: string }>(
       '/api/alternate/antigravity/oauth/start',
