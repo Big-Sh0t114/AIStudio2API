@@ -7,7 +7,6 @@ export type TabID =
   | 'services'
   | 'access'
   | 'models'
-  | 'providers'
   | 'requests'
   | 'usage'
   | 'settings'
