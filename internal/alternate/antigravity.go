@@ -87,6 +87,37 @@ func (p *Antigravity) read() (agCredentials,error) {
  if c.AccessToken==""&&c.RefreshToken=="" {return c,fail(401,"authentication_required","Antigravity OAuth token missing")}
  return c,nil
 }
+// AntigravityStatus reports configuration and local credential state without exposing tokens.
+type AntigravityStatus struct {
+	OAuthFileConfigured bool `json:"oauth_file_configured"`
+	ClientIDConfigured bool `json:"client_id_configured"`
+	ClientSecretConfigured bool `json:"client_secret_configured"`
+	ProjectIDConfigured bool `json:"project_id_configured"`
+	CredentialFileExists bool `json:"credential_file_exists"`
+	Authenticated bool `json:"authenticated"`
+	OAuthInProgress bool `json:"oauth_in_progress"`
+}
+
+func (p *Antigravity) Status() AntigravityStatus {
+	status := AntigravityStatus{
+		OAuthFileConfigured: strings.TrimSpace(p.file) != "",
+		ClientIDConfigured: strings.TrimSpace(p.clientID) != "",
+		ClientSecretConfigured: strings.TrimSpace(p.clientSecret) != "",
+		ProjectIDConfigured: strings.TrimSpace(p.projectID) != "",
+	}
+	if status.OAuthFileConfigured {
+		if info, err := os.Stat(p.file); err == nil && !info.IsDir() {
+			status.CredentialFileExists = true
+			credentials, readErr := p.read()
+			status.Authenticated = readErr == nil && (credentials.AccessToken != "" || credentials.RefreshToken != "")
+		}
+	}
+	p.oauthMu.Lock()
+	status.OAuthInProgress = p.oauthActive
+	p.oauthMu.Unlock()
+	return status
+}
+
 func (p *Antigravity) save(c agCredentials) error {
  if c.ManagedBy!="aistudio2api" {return nil} // never overwrite imported credentials
  if err:=os.MkdirAll(filepath.Dir(p.file),0700);err!=nil{return err}

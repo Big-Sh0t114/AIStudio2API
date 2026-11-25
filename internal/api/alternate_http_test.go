@@ -36,3 +36,18 @@ func TestAlternateChatRejectsUnsupportedTools(t *testing.T){
  s.handleAlternateOrChat(rec,httptest.NewRequest(http.MethodPost,"/v1/chat/completions",strings.NewReader(body)))
  if rec.Code!=http.StatusBadRequest{t.Fatalf("status=%d body=%s",rec.Code,rec.Body.String())}
 }
+
+func TestAlternateAdminStatusAndModelsEndpoints(t *testing.T) {
+	provider := alternate.New(alternate.Config{})
+	s := &server{config: Config{Alternate: provider}}
+	status := httptest.NewRecorder()
+	s.handleAlternateStatus(status, httptest.NewRequest(http.MethodGet, "/api/alternate/status", nil))
+	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"antigravity"`) {
+		t.Fatalf("status=%d body=%s", status.Code, status.Body.String())
+	}
+	models := httptest.NewRecorder()
+	s.handleAlternateModels(models, httptest.NewRequest(http.MethodGet, "/api/alternate/models", nil))
+	if models.Code != http.StatusOK || !strings.Contains(models.Body.String(), `"models"`) {
+		t.Fatalf("status=%d body=%s", models.Code, models.Body.String())
+	}
+}

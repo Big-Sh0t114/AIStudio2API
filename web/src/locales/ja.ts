@@ -66,6 +66,49 @@ export const messages: Record<TranslationKey, string> = {
   'nav.requests': 'クールダウンとリクエスト',
   'nav.settings': '設定',
   'nav.playground': 'API を試す',
+  'nav.providers': 'プロバイダー',
+  'providers.title': 'プロバイダー管理',
+  'providers.description':
+    'Antigravity OAuth を設定し、既存の Playground アカウントで利用できる Gemini Web モデルを確認します。',
+  'providers.antigravityTitle': 'Antigravity',
+  'providers.antigravityDescription':
+    'OAuth で Google Cloud Code にログインし、そのアカウントのモデル一覧を取得します。',
+  'providers.geminiWebTitle': 'Gemini Web',
+  'providers.geminiWebDescription':
+    '既存の Playground の Google セッションを再利用し、モデルをアカウント別に表示します。',
+  'providers.oauthFile': 'OAuth 認証ファイルのパス',
+  'providers.clientID': 'OAuth Client ID',
+  'providers.clientSecret': 'OAuth Client Secret',
+  'providers.projectID': 'Google Cloud Project ID（任意）',
+  'providers.save': '設定を保存',
+  'providers.saved': 'プロバイダー設定を保存しました。',
+  'providers.savedRestart': '設定を保存しました。反映には AIStudio2API アプリの再起動が必要です。',
+  'providers.adminAuthRequired':
+    'OAuth を開始する前に、設定 → セキュリティで管理者ログインを有効にしてください。',
+  'providers.openSecuritySettings': 'セキュリティ設定を開く',
+  'providers.connect': 'Google アカウントを接続',
+  'providers.refresh': 'アカウントとモデルを更新',
+  'providers.connected': '認証済み',
+  'providers.notConnected': '未認証',
+  'providers.oauthInProgress': 'Google 認証を待機中',
+  'providers.models': 'モデル',
+  'providers.noModels': 'モデルがありません。認証状態を確認するか、一覧を更新してください。',
+  'providers.sources': 'ソースアカウント',
+  'providers.noSources':
+    '利用可能な Playground アカウントがありません。先にアカウント画面で Google アカウントを追加してログインしてください。',
+  'providers.oauthHint':
+    'ローカル OAuth コールバックを開始しました。開いた Google ページで認証を完了してください。',
+  'providers.openAuthorization': '認証ページが自動で開かない場合は、ここをクリックしてください。',
+  'providers.envLocked':
+    '環境変数で管理されている項目はここでは編集できません。起動環境または .env を変更してください。',
+  'providers.credentialsMissing': '認証ファイルはまだありません。OAuth 完了後に自動作成されます。',
+  'providers.secretKeep': '設定済み。空欄のままにすると現在の値を保持します。',
+  'providers.copy': 'モデル ID をコピー',
+  'providers.copyFailed': 'コピーできませんでした。モデル ID を手動でコピーしてください。',
+  'providers.antigravityModels': 'Antigravity モデル',
+  'providers.notConfigured': '未設定',
+  'providers.restartPending':
+    '設定は保存されていますが、このプロセスにはまだ反映されていません。OAuth を開始する前に AIStudio2API を再起動してください。',
   'nav.version': 'バージョン',
   'section.version.title': 'バージョンと更新',
   'section.version.description':

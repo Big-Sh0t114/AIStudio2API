@@ -49,6 +49,32 @@ interface ModelsResponse {
   models: Model[]
 }
 
+export interface AlternateModel {
+  id: string
+  name: string
+  owner: string
+}
+
+export interface AntigravityStatus {
+  oauth_file_configured: boolean
+  client_id_configured: boolean
+  client_secret_configured: boolean
+  project_id_configured: boolean
+  credential_file_exists: boolean
+  authenticated: boolean
+  oauth_in_progress: boolean
+}
+
+export interface AlternateStatus {
+  antigravity: AntigravityStatus
+}
+
+export interface PlaygroundSource {
+  id: string
+  label: string
+  state: string
+}
+
 interface CooldownsResponse {
   cooldowns: Cooldown[]
 }
@@ -139,6 +165,24 @@ export const api = {
   accountExits: async () =>
     (await requestJSON<{ exits: AccountExit[] }>('/api/accounts/exits')).exits,
   models: async () => (await requestJSON<ModelsResponse>('/api/models')).models,
+  alternateStatus: () => requestJSON<AlternateStatus>('/api/alternate/status'),
+  alternateModels: async () => {
+    const response = await requestJSON<{ models?: AlternateModel[] | null }>(
+      '/api/alternate/models',
+    )
+    return response.models ?? []
+  },
+  notebookSources: async () => {
+    const response = await requestJSON<{ sources?: PlaygroundSource[] | null }>(
+      '/api/notebook/sources',
+    )
+    return response.sources ?? []
+  },
+  startAntigravityOAuth: () =>
+    requestJSON<{ authorization_url: string; callback: string }>(
+      '/api/alternate/antigravity/oauth/start',
+      { method: 'POST' },
+    ),
   cooldowns: async () => (await requestJSON<CooldownsResponse>('/api/cooldowns')).cooldowns,
   requests: async () => (await requestJSON<RequestsResponse>('/api/requests')).requests,
   config: () => requestJSON<ServiceConfig>('/api/config'),

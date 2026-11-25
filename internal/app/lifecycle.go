@@ -854,7 +854,11 @@ func (manager *runtimeManager) decorateRuntimeConfig(value api.RuntimeConfig, ac
 	value.ManagementRestartRequired = value.ManagementRestartRequired ||
 		value.AdminAuthEnabled != manager.activeManagement.AdminAuthEnabled ||
 		value.AdminUsername != manager.activeManagement.AdminUsername ||
-		value.SavedAdminPassword != manager.activeManagement.AdminPassword
+		value.SavedAdminPassword != manager.activeManagement.AdminPassword ||
+		value.AntigravityOAuthFile != manager.activeManagement.AntigravityOAuthFile ||
+		value.AntigravityClientID != manager.activeManagement.AntigravityClientID ||
+		value.SavedAntigravityClientSecret != manager.activeManagement.AntigravityClientSecret ||
+		value.AntigravityProjectID != manager.activeManagement.AntigravityProjectID
 	value.ServiceRestartRequired = !sameDataConfig(value, active, manager.overrides)
 	return value
 }

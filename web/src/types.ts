@@ -5,6 +5,7 @@ export type TabID =
   | 'accounts'
   | 'access'
   | 'models'
+  | 'providers'
   | 'requests'
   | 'usage'
   | 'settings'
@@ -474,6 +475,11 @@ export interface ServiceConfig {
   management_restart_required: boolean
   service_restart_required: boolean
   proxy: string
+  antigravity_oauth_file: string
+  antigravity_client_id: string
+  antigravity_client_secret?: string
+  antigravity_client_secret_set: boolean
+  antigravity_project_id: string
   active_proxy: string
   proxy_pool: ProxyPoolEntry[]
   init_timeout: string

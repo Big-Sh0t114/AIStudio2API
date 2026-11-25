@@ -66,6 +66,52 @@ export const messages: Record<TranslationKey, string> = {
   'nav.requests': 'Cooldowns & requests',
   'nav.settings': 'Settings',
   'nav.playground': 'API playground',
+  'nav.providers': 'Providers',
+  'providers.title': 'Provider management',
+  'providers.description':
+    'Configure Antigravity OAuth and inspect Gemini Web models using existing Playground accounts.',
+  'providers.antigravityTitle': 'Antigravity',
+  'providers.antigravityDescription':
+    'Sign in to Google Cloud Code with OAuth and discover the models available to that account.',
+  'providers.geminiWebTitle': 'Gemini Web',
+  'providers.geminiWebDescription':
+    'Reuse existing Playground Google sessions; models are listed separately for each source account.',
+  'providers.oauthFile': 'OAuth credential file path',
+  'providers.clientID': 'OAuth Client ID',
+  'providers.clientSecret': 'OAuth Client Secret',
+  'providers.projectID': 'Google Cloud Project ID (optional)',
+  'providers.save': 'Save settings',
+  'providers.saved': 'Provider settings saved.',
+  'providers.savedRestart':
+    'Settings saved. Restart the AIStudio2API application for them to take effect.',
+  'providers.adminAuthRequired':
+    'Enable administrator sign-in under Settings → Security before starting OAuth.',
+  'providers.openSecuritySettings': 'Open security settings',
+  'providers.connect': 'Connect Google account',
+  'providers.refresh': 'Refresh accounts and models',
+  'providers.connected': 'Authorized',
+  'providers.notConnected': 'Not authorized',
+  'providers.oauthInProgress': 'Waiting for Google authorization',
+  'providers.models': 'Models',
+  'providers.noModels': 'No models found. Check authorization or refresh the model catalog.',
+  'providers.sources': 'source accounts',
+  'providers.noSources':
+    'No available Playground source accounts. Add and sign in to a Google account on the Accounts page first.',
+  'providers.oauthHint':
+    'The local OAuth callback is listening. Complete authorization in the Google page that opened.',
+  'providers.openAuthorization':
+    'If the authorization page did not open automatically, click here to continue.',
+  'providers.envLocked':
+    'Fields controlled by process environment variables cannot be edited here. Change the launch environment or matching .env variables.',
+  'providers.credentialsMissing':
+    'The credential file does not exist yet. It will be created after OAuth completes.',
+  'providers.secretKeep': 'Already set; leave blank to keep the current value.',
+  'providers.copy': 'Copy model ID',
+  'providers.copyFailed': 'Copy failed. Select and copy the model ID manually.',
+  'providers.antigravityModels': 'Antigravity models',
+  'providers.notConfigured': 'Not configured',
+  'providers.restartPending':
+    'Saved settings are not active in this process yet. Restart AIStudio2API before starting OAuth.',
   'nav.version': 'Version',
   'section.version.title': 'Version & updates',
   'section.version.description': 'Check the running version and update online from GitHub releases',

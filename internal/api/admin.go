@@ -375,6 +375,12 @@ type RuntimeConfig struct {
 	ManagementRestartRequired bool                 `json:"management_restart_required"`
 	ServiceRestartRequired    bool                 `json:"service_restart_required"`
 	Proxy                     string               `json:"proxy"`
+	AntigravityOAuthFile      string               `json:"antigravity_oauth_file"`
+	AntigravityClientID       string               `json:"antigravity_client_id"`
+	AntigravityClientSecret   *string              `json:"antigravity_client_secret,omitempty"`
+	AntigravityClientSecretSet bool                `json:"antigravity_client_secret_set"`
+	SavedAntigravityClientSecret string             `json:"-"`
+	AntigravityProjectID      string               `json:"antigravity_project_id"`
 	ActiveProxy               string               `json:"active_proxy"`
 	ProxyPool                 []AdminProxy         `json:"proxy_pool"`
 	InitTimeout               string               `json:"init_timeout"`
