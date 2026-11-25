@@ -50,6 +50,7 @@ const AccountsPanel = lazyPanel(() => import('@/components/AccountsPanel.vue'))
 const ModelsTable = lazyPanel(() => import('@/components/ModelsTable.vue'))
 const RequestsPanel = lazyPanel(() => import('@/components/RequestsPanel.vue'))
 const SettingsPanel = lazyPanel(() => import('@/components/SettingsPanel.vue'))
+const ProvidersPanel = lazyPanel(() => import('@/components/ProvidersPanel.vue'))
 const validTabs: TabID[] = [
   'logs',
   'accounts',
@@ -58,6 +59,7 @@ const validTabs: TabID[] = [
   'requests',
   'usage',
   'settings',
+  'providers',
   'version',
 ]
 const { tab: currentTab, select: selectTab } = useTabParam(validTabs, 'logs')
@@ -205,6 +207,7 @@ const navigation: { id: TabID; label: TranslationKey; icon: IconName }[] = [
   { id: 'requests', label: 'nav.requests', icon: 'requests' },
   { id: 'usage', label: 'nav.usage', icon: 'usage' },
   { id: 'settings', label: 'nav.settings', icon: 'settings' },
+  { id: 'providers', label: 'nav.providers', icon: 'network' },
   { id: 'playground', label: 'nav.playground', icon: 'playground' },
   { id: 'version', label: 'nav.version', icon: 'version' },
 ]
@@ -496,7 +499,7 @@ onMounted(revealCurrentTab)
         </p>
       </div>
       <KeepAlive
-        include="LogsPanel,AccountsPanel,AccessPanel,ModelsTable,RequestsPanel,SettingsPanel,VersionPanel,UsagePanel"
+        include="LogsPanel,AccountsPanel,AccessPanel,ModelsTable,RequestsPanel,SettingsPanel,ProvidersPanel,VersionPanel,UsagePanel"
       >
         <LogsPanel v-if="currentTab === 'logs'" :logs="logs" @clear="clearLogs" />
         <AccountsPanel
@@ -551,6 +554,15 @@ onMounted(revealCurrentTab)
           :error="errors.config"
           @saved="config = $event"
           @notice="showNotice"
+        />
+        <ProvidersPanel
+          v-else-if="currentTab === 'providers'"
+          :config="config"
+          :loading="loading.config"
+          :error="errors.config"
+          @saved="config = $event"
+          @notice="showNotice"
+          @settings="openTab('settings')"
         />
         <VersionPanel
           v-else-if="currentTab === 'version'"
