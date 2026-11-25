@@ -93,6 +93,8 @@ export const messages = {
   'providers.copy': "复制模型 ID",
   'providers.copyFailed': "复制失败，请手动复制模型 ID。",
   'providers.antigravityModels': "Antigravity 模型",
+  'providers.notConfigured': "未配置",
+  'providers.restartPending': "检测到配置已保存但尚未在当前进程生效，请先重启 AIStudio2API 应用，再进行 OAuth 授权。",
   'nav.version': '版本',
   'section.version.title': '版本与更新',
   'section.version.description': '查看当前版本，从 GitHub 发行版本在线更新',
