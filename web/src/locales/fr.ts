@@ -81,10 +81,8 @@ export const messages: Record<TranslationKey, string> = {
   'providers.antigravityTitle': 'Antigravity',
   'providers.antigravityDescription':
     'Connectez-vous à Google Cloud Code avec OAuth et découvrez les modèles disponibles pour ce compte.',
-  'providers.geminiWebTitle': 'Gemini Chat'
-  'providers.geminiWebDescription':
-    'Utilise les sessions Playground existantes pour le chat Web Gemini ; les modèles sont répertoriés par compte source.'
-    'Réutilise les sessions Google Playground existantes ; les modèles sont séparés par compte source.',
+  'providers.geminiWebTitle': 'Gemini Chat',
+  'providers.geminiWebDescription': 'Utilise les sessions Playground existantes pour le chat Web Gemini ; les modèles sont répertoriés par compte source.',
   'providers.oauthFile': 'Chemin du fichier d’identifiants OAuth',
   'providers.clientID': 'OAuth Client ID',
   'providers.clientSecret': 'OAuth Client Secret',
@@ -104,9 +102,7 @@ export const messages: Record<TranslationKey, string> = {
   'providers.models': 'Modèles',
   'providers.noModels': 'Aucun modèle. Vérifiez l’autorisation ou actualisez le catalogue.',
   'providers.sources': 'comptes sources',
-  'providers.noSources':
-    'Aucun compte source Playground disponible. Ajoutez et connectez un compte Google dans Services → AI Studio Playground.'
-    'Aucun compte Playground disponible. Ajoutez et connectez d’abord un compte Google dans la page Comptes.',
+  'providers.noSources': 'Aucun compte source Playground disponible. Ajoutez et connectez un compte Google dans Services → AI Studio Playground.',
   'providers.oauthHint':
     'Le rappel OAuth local écoute. Terminez l’autorisation dans la page Google ouverte.',
   'providers.openAuthorization':
