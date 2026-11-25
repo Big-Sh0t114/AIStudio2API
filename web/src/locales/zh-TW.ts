@@ -98,6 +98,8 @@ export const messages: Record<TranslationKey, string> = {
   'providers.copy': "複製模型 ID",
   'providers.copyFailed': "複製失敗，請手動複製模型 ID。",
   'providers.antigravityModels': "Antigravity 模型",
+  'providers.notConfigured': "未設定",
+  'providers.restartPending': "設定已儲存，但尚未在目前程序生效。請先重新啟動 AIStudio2API，再進行 OAuth 授權。",
   'nav.version': '版本',
   'section.version.title': '版本與更新',
   'section.version.description': '檢視目前版本，從 GitHub 發行版本線上更新',
