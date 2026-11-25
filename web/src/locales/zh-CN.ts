@@ -62,7 +62,8 @@ export const messages = {
   'nav.playground': 'API 试用',
   'nav.services': '服务管理',
   'services.title': '上游服务管理',
-  'services.description': '集中管理 NotebookLM、Gemini Chat、Antigravity 与 AI Studio Playground 的账号、授权及模型入口。',
+  'services.description':
+    '集中管理 NotebookLM、Gemini Chat、Antigravity 与 AI Studio Playground 的账号、授权及模型入口。',
   'services.notebook': 'NotebookLM',
   'services.geminiChat': 'Gemini Chat',
   'services.antigravity': 'Antigravity',
@@ -74,7 +75,8 @@ export const messages = {
   'providers.antigravityDescription':
     '通过 OAuth 登录 Google Cloud Code，并使用该账号可用的模型目录。',
   'providers.geminiWebTitle': 'Gemini Chat',
-  'providers.geminiWebDescription': '通过现有 Playground 登录态调用 Gemini 网页 Chat；模型按来源账号分别列出。',
+  'providers.geminiWebDescription':
+    '通过现有 Playground 登录态调用 Gemini 网页 Chat；模型按来源账号分别列出。',
   'providers.oauthFile': 'OAuth 凭据文件路径',
   'providers.clientID': 'OAuth Client ID',
   'providers.clientSecret': 'OAuth Client Secret',
@@ -92,7 +94,8 @@ export const messages = {
   'providers.models': '模型',
   'providers.noModels': '暂无模型；请检查授权状态或刷新模型目录。',
   'providers.sources': '来源账号',
-  'providers.noSources': '没有可用的 Playground 来源账号。请先在服务管理 → AI Studio Playground 中添加并登录 Google 账号。',
+  'providers.noSources':
+    '没有可用的 Playground 来源账号。请先在服务管理 → AI Studio Playground 中添加并登录 Google 账号。',
   'providers.oauthHint': '已启动本地 OAuth 回调，请在打开的 Google 页面完成授权。',
   'providers.openAuthorization': '如果授权页面未自动打开，点击此处继续。',
   'providers.envLocked': '由进程环境变量控制的字段不可在此修改，请调整启动环境或 .env 对应变量。',
