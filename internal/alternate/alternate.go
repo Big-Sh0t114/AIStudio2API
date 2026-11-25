@@ -58,6 +58,12 @@ func (p *Provider) Chat(ctx context.Context, id string, messages []Message) (str
     return "", &Error{Status:404,Code:"model_not_found",Message:"Unknown alternate provider model"}
 }
 func (p *Provider) StartOAuth(ctx context.Context) (string,error) { return p.ag.StartOAuth(ctx) }
+func (p *Provider) AntigravityStatus() AntigravityStatus {
+	if p == nil || p.ag == nil {
+		return AntigravityStatus{}
+	}
+	return p.ag.Status()
+}
 type Error struct { Status int; Code, Message string }
 func (e *Error) Error() string { return e.Message }
 func fail(status int,code,msg string) error { return &Error{Status:status,Code:code,Message:msg} }
