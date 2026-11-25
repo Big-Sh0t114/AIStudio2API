@@ -4,7 +4,6 @@ import { api } from '@/api'
 import { useI18n } from '@/i18n'
 import type { Model, UsageDimension, UsagePair, UsageReport, UsageStats } from '@/types'
 import UiIcon from './UiIcon.vue'
-import NotebookPanel from './NotebookPanel.vue'
 import UiSelect, { keepSelected } from './UiSelect.vue'
 import FilterMenu from './FilterMenu.vue'
 import KpiCard from './usage/KpiCard.vue'
@@ -391,12 +390,6 @@ const statusOptions = computed(() =>
         </UiSelect>
       </div>
     </header>
-    <details class="max-h-[48vh] shrink-0 overflow-y-auto border-b border-line">
-      <summary class="page-x cursor-pointer py-2 text-sm font-medium text-gray-300">
-        Gemini Notebook · 配额
-      </summary>
-      <NotebookPanel mode="usage" />
-    </details>
 
     <div
       class="page-x sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-line bg-canvas/95 py-2.5 backdrop-blur"

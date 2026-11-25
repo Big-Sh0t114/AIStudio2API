@@ -47,7 +47,6 @@ import LoginViewer from './LoginViewer.vue'
 import StagedRefreshIcon from './StagedRefreshIcon.vue'
 import UiCollapse from './UiCollapse.vue'
 import UiIcon from './UiIcon.vue'
-import NotebookPanel from './NotebookPanel.vue'
 import UiPager from './UiPager.vue'
 import UiSelect, { keepSelected } from './UiSelect.vue'
 
@@ -1492,12 +1491,6 @@ watch(
         </DropdownMenuRoot>
       </div>
     </header>
-    <details class="max-h-[48vh] shrink-0 overflow-y-auto border-b border-line">
-      <summary class="page-x cursor-pointer py-2 text-sm font-medium text-gray-300">
-        Gemini Notebook · 账号管理
-      </summary>
-      <NotebookPanel mode="accounts" />
-    </details>
     <div
       class="page-x flex min-h-0 flex-1 flex-col py-4 md:overflow-hidden md:py-8 md:[scrollbar-gutter:stable]"
     >

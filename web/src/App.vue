@@ -46,20 +46,20 @@ function lazyPanel(loader: AsyncComponentLoader) {
 const UsagePanel = lazyPanel(() => import('@/components/UsagePanel.vue'))
 const VersionPanel = lazyPanel(() => import('@/components/VersionPanel.vue'))
 const AccessPanel = lazyPanel(() => import('@/components/AccessPanel.vue'))
-const AccountsPanel = lazyPanel(() => import('@/components/AccountsPanel.vue'))
 const ModelsTable = lazyPanel(() => import('@/components/ModelsTable.vue'))
 const RequestsPanel = lazyPanel(() => import('@/components/RequestsPanel.vue'))
 const SettingsPanel = lazyPanel(() => import('@/components/SettingsPanel.vue'))
-const ProvidersPanel = lazyPanel(() => import('@/components/ProvidersPanel.vue'))
+const ServicesPanel = lazyPanel(() => import('@/components/ServicesPanel.vue'))
 const validTabs: TabID[] = [
   'logs',
   'accounts',
+  'providers',
+  'services',
   'access',
   'models',
   'requests',
   'usage',
   'settings',
-  'providers',
   'version',
 ]
 const { tab: currentTab, select: selectTab } = useTabParam(validTabs, 'logs')
@@ -70,10 +70,20 @@ watch(
   () => route.fullPath,
   () => {
     if (route.name === 'console') {
-      const tab = route.query.tab as TabID
-      currentTab.value = validTabs.includes(tab) ? tab : 'logs'
+      const rawTab = String(route.query.tab ?? '')
+      if (rawTab === 'accounts' || rawTab === 'providers') {
+        currentTab.value = 'services'
+        const url = new URL(window.location.href)
+        url.searchParams.set('tab', 'services')
+        url.searchParams.set('service', rawTab === 'accounts' ? 'playground' : 'antigravity')
+        window.history.replaceState(null, '', url)
+      } else {
+        const tab = rawTab as TabID
+        currentTab.value = validTabs.includes(tab) ? tab : 'logs'
+      }
     }
   },
+  { immediate: true },
 )
 
 // openTab 切换页面，API 试用进入独立的试用页
@@ -201,21 +211,20 @@ watch(
 
 const navigation: { id: TabID; label: TranslationKey; icon: IconName }[] = [
   { id: 'logs', label: 'nav.logs', icon: 'logs' },
-  { id: 'accounts', label: 'nav.accounts', icon: 'accounts' },
+  { id: 'services', label: 'nav.services', icon: 'network' },
   { id: 'access', label: 'nav.access', icon: 'access' },
   { id: 'models', label: 'nav.models', icon: 'models' },
   { id: 'requests', label: 'nav.requests', icon: 'requests' },
   { id: 'usage', label: 'nav.usage', icon: 'usage' },
   { id: 'settings', label: 'nav.settings', icon: 'settings' },
-  { id: 'providers', label: 'nav.providers', icon: 'network' },
   { id: 'playground', label: 'nav.playground', icon: 'playground' },
   { id: 'version', label: 'nav.version', icon: 'version' },
 ]
 
-// camoufoxInTask 表示账户页的浏览器登录任务行正在显示 Camoufox 下载进度，此时不再显示顶部横幅
+// camoufoxInTask 表示服务管理页正在显示 Camoufox 下载进度，此时不再显示顶部横幅
 const camoufoxInTask = computed(
   () =>
-    currentTab.value === 'accounts' &&
+    currentTab.value === 'services' &&
     accountTasks.value.some((task) => waitsForCamoufox(task, status.value?.camoufox)),
 )
 
@@ -499,15 +508,18 @@ onMounted(revealCurrentTab)
         </p>
       </div>
       <KeepAlive
-        include="LogsPanel,AccountsPanel,AccessPanel,ModelsTable,RequestsPanel,SettingsPanel,ProvidersPanel,VersionPanel,UsagePanel"
+        include="LogsPanel,ServicesPanel,AccessPanel,ModelsTable,RequestsPanel,SettingsPanel,VersionPanel,UsagePanel"
       >
         <LogsPanel v-if="currentTab === 'logs'" :logs="logs" @clear="clearLogs" />
-        <AccountsPanel
-          v-else-if="currentTab === 'accounts'"
+        <ServicesPanel
+          v-else-if="currentTab === 'services'"
+          :config="config"
+          :config-loading="loading.config"
+          :config-error="errors.config"
           :accounts="visibleAccounts"
           :tasks="accountTasks"
-          :loading="loading.accounts"
-          :error="errors.accounts"
+          :accounts-loading="loading.accounts"
+          :accounts-error="errors.accounts"
           :chrome-import="status?.chrome_import ?? false"
           :camoufox="status?.camoufox"
           :models="models"
@@ -516,6 +528,8 @@ onMounted(revealCurrentTab)
           @updated="updateAccount"
           @notice="showNotice"
           @delete="deleteAccounts"
+          @saved="config = $event"
+          @settings="openTab('settings')"
         />
         <AccessPanel
           v-else-if="currentTab === 'access'"
@@ -554,15 +568,6 @@ onMounted(revealCurrentTab)
           :error="errors.config"
           @saved="config = $event"
           @notice="showNotice"
-        />
-        <ProvidersPanel
-          v-else-if="currentTab === 'providers'"
-          :config="config"
-          :loading="loading.config"
-          :error="errors.config"
-          @saved="config = $event"
-          @notice="showNotice"
-          @settings="openTab('settings')"
         />
         <VersionPanel
           v-else-if="currentTab === 'version'"
