@@ -221,7 +221,7 @@ const navigation: { id: TabID; label: TranslationKey; icon: IconName }[] = [
   { id: 'version', label: 'nav.version', icon: 'version' },
 ]
 
-// camoufoxInTask 表示账户页的浏览器登录任务行正在显示 Camoufox 下载进度，此时不再显示顶部横幅
+// camoufoxInTask 表示服务管理页正在显示 Camoufox 下载进度，此时不再显示顶部横幅
 const camoufoxInTask = computed(
   () =>
     currentTab.value === 'services' &&
