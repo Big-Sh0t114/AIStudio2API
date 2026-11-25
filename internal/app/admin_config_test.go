@@ -20,6 +20,10 @@ func TestAdminConfig(t *testing.T) {
 	cfg.AdminAuthEnabled = true
 	cfg.AdminUsername = "operator"
 	cfg.AdminPassword = "test-password"
+	cfg.AntigravityOAuthFile = filepath.Join("runtime", "antigravity", "oauth.json")
+	cfg.AntigravityClientID = "desktop-client-id"
+	cfg.AntigravityClientSecret = "antigravity-client-secret"
+	cfg.AntigravityProjectID = "project-test"
 	if err := cfg.Save(path); err != nil {
 		t.Fatal(err)
 	}
@@ -35,10 +39,13 @@ func TestAdminConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(raw), "test-password") || !value.AdminPasswordSet || !value.BuildNativeNonstream {
+	if strings.Contains(string(raw), "test-password") || strings.Contains(string(raw), "antigravity-client-secret") || !value.AdminPasswordSet || !value.AntigravityClientSecretSet || value.AntigravityClientSecret != nil || !value.BuildNativeNonstream {
 		t.Fatalf("config=%s", raw)
 	}
 	value.Proxy = "http://127.0.0.1:1234"
+	newClientSecret := "updated-antigravity-secret"
+	value.AntigravityClientSecret = &newClientSecret
+	value.AntigravityClientID = "updated-client-id"
 	value.AutoStart = true
 	if _, err := admin.UpdateRuntimeConfig(ctx, value); err != nil {
 		t.Fatal(err)
@@ -46,6 +53,9 @@ func TestAdminConfig(t *testing.T) {
 	saved, err := config.Load(path)
 	if err != nil || saved.AdminPassword != cfg.AdminPassword {
 		t.Fatalf("password changed: %v", err)
+	}
+	if saved.AntigravityClientSecret != "updated-antigravity-secret" || saved.AntigravityClientID != "updated-client-id" {
+		t.Fatalf("Antigravity settings were not saved: %+v", saved)
 	}
 	if !saved.AutoStart {
 		t.Fatal("auto_start was not saved")
