@@ -66,6 +66,13 @@ export const messages: Record<TranslationKey, string> = {
   'nav.requests': 'Cooldowns und Anfragen',
   'nav.settings': 'Einstellungen',
   'nav.playground': 'API testen',
+  'nav.services': 'Dienste',
+  'services.title': 'Upstream-Dienste',
+  'services.description': 'Verwalte Konten, Autorisierung und Modellkataloge für NotebookLM, Gemini Chat, Antigravity und AI Studio Playground zentral an einem Ort.',
+  'services.notebook': 'NotebookLM',
+  'services.geminiChat': 'Gemini Chat',
+  'services.antigravity': 'Antigravity',
+  'services.playground': 'AI Studio Playground',
   'nav.providers': 'Anbieter',
   'providers.title': 'Anbieterverwaltung',
   'providers.description':
@@ -73,8 +80,9 @@ export const messages: Record<TranslationKey, string> = {
   'providers.antigravityTitle': 'Antigravity',
   'providers.antigravityDescription':
     'Mit OAuth bei Google Cloud Code anmelden und die für dieses Konto verfügbaren Modelle abrufen.',
-  'providers.geminiWebTitle': 'Gemini Web',
+  'providers.geminiWebTitle': 'Gemini Chat'
   'providers.geminiWebDescription':
+    'Verwendet vorhandene Playground-Anmeldesitzungen für Gemini Web Chat; Modelle werden je Quellkonto aufgelistet.'
     'Vorhandene Google-Sitzungen von Playground wiederverwenden; Modelle werden je Quellkonto aufgelistet.',
   'providers.oauthFile': 'Pfad zur OAuth-Anmeldedatei',
   'providers.clientID': 'OAuth Client ID',
@@ -97,6 +105,7 @@ export const messages: Record<TranslationKey, string> = {
     'Keine Modelle gefunden. Autorisierung prüfen oder Modellkatalog aktualisieren.',
   'providers.sources': 'Quellkonten',
   'providers.noSources':
+    'Keine verfügbaren Playground-Quellkonten. Füge unter Dienste → AI Studio Playground zuerst ein Google-Konto hinzu und melde dich an.'
     'Keine verfügbaren Playground-Quellkonten. Füge zuerst auf der Kontenseite ein Google-Konto hinzu und melde dich an.',
   'providers.oauthHint':
     'Der lokale OAuth-Callback wartet. Schließe die Autorisierung auf der geöffneten Google-Seite ab.',
