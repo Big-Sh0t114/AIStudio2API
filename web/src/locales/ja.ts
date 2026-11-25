@@ -66,6 +66,13 @@ export const messages: Record<TranslationKey, string> = {
   'nav.requests': 'クールダウンとリクエスト',
   'nav.settings': '設定',
   'nav.playground': 'API を試す',
+  'nav.services': 'サービス管理',
+  'services.title': '上流サービス管理',
+  'services.description': 'NotebookLM、Gemini Chat、Antigravity、AI Studio Playground のアカウント、認証、モデル一覧を一元管理します。',
+  'services.notebook': 'NotebookLM',
+  'services.geminiChat': 'Gemini Chat',
+  'services.antigravity': 'Antigravity',
+  'services.playground': 'AI Studio Playground',
   'nav.providers': 'プロバイダー',
   'providers.title': 'プロバイダー管理',
   'providers.description':
@@ -73,8 +80,9 @@ export const messages: Record<TranslationKey, string> = {
   'providers.antigravityTitle': 'Antigravity',
   'providers.antigravityDescription':
     'OAuth で Google Cloud Code にログインし、そのアカウントのモデル一覧を取得します。',
-  'providers.geminiWebTitle': 'Gemini Web',
+  'providers.geminiWebTitle': 'Gemini Chat'
   'providers.geminiWebDescription':
+    '既存の Playground ログインセッションで Gemini Web Chat を利用します。モデルはソースアカウント別に表示されます。'
     '既存の Playground の Google セッションを再利用し、モデルをアカウント別に表示します。',
   'providers.oauthFile': 'OAuth 認証ファイルのパス',
   'providers.clientID': 'OAuth Client ID',
@@ -95,6 +103,7 @@ export const messages: Record<TranslationKey, string> = {
   'providers.noModels': 'モデルがありません。認証状態を確認するか、一覧を更新してください。',
   'providers.sources': 'ソースアカウント',
   'providers.noSources':
+    '利用可能な Playground アカウントがありません。サービス管理 → AI Studio Playground で Google アカウントを追加してログインしてください。'
     '利用可能な Playground アカウントがありません。先にアカウント画面で Google アカウントを追加してログインしてください。',
   'providers.oauthHint':
     'ローカル OAuth コールバックを開始しました。開いた Google ページで認証を完了してください。',
