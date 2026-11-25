@@ -93,6 +93,7 @@ export const messages = {
   'providers.noModels': '暂无模型；请检查授权状态或刷新模型目录。',
   'providers.sources': '来源账号',
   'providers.noSources': '没有可用的 Playground 来源账号。请先在服务管理 → AI Studio Playground 中添加并登录 Google 账号。',
+  'providers.oauthHint': '已启动本地 OAuth 回调，请在打开的 Google 页面完成授权。',
   'providers.openAuthorization': '如果授权页面未自动打开，点击此处继续。',
   'providers.envLocked': '由进程环境变量控制的字段不可在此修改，请调整启动环境或 .env 对应变量。',
   'providers.credentialsMissing': '凭据文件尚不存在；完成 OAuth 后会自动创建。',
