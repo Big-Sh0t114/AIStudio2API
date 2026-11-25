@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onActivated, onUnmounted, ref, watch } from 'vue'
 import { api, type AlternateModel, type AlternateStatus, type PlaygroundSource } from '@/api'
 import { useI18n } from '@/i18n'
 import type { ServiceConfig } from '@/types'
@@ -53,7 +53,8 @@ const canStartOAuth = computed(
     Boolean(oauthFile.value.trim()) &&
     Boolean(clientID.value.trim()) &&
     Boolean(clientSecret.value.trim() || props.config?.antigravity_client_secret_set) &&
-    !startingOAuth.value,
+    !startingOAuth.value &&
+    !props.config?.management_restart_required,
 )
 
 async function refreshStatus(): Promise<void> {
@@ -68,12 +69,14 @@ async function refreshAll(): Promise<void> {
       api.alternateModels(),
       api.notebookSources(),
     ])
+    const failures: string[] = []
     if (results[0]?.status === 'fulfilled') status.value = results[0].value
-    else throw results[0]?.reason
+    else failures.push(errorText(results[0]?.reason))
     if (results[1]?.status === 'fulfilled') models.value = results[1].value
-    else throw results[1]?.reason
+    else failures.push(errorText(results[1]?.reason))
     if (results[2]?.status === 'fulfilled') sources.value = results[2].value
-    else throw results[2]?.reason
+    else failures.push(errorText(results[2]?.reason))
+    if (failures.length > 0) error.value = failures.join(' · ')
   } catch (e) {
     error.value = errorText(e)
   } finally {
@@ -175,7 +178,6 @@ async function copyModel(id: string): Promise<void> {
   }, 1800)
 }
 
-onMounted(refreshAll)
 onActivated(refreshAll)
 onUnmounted(stopOAuthPolling)
 </script>
@@ -224,7 +226,7 @@ onUnmounted(stopOAuthPolling)
               class="rounded-full border px-2.5 py-1 text-xs"
               :class="antigravityReady ? 'border-green-500/40 text-green-300' : 'border-amber-500/40 text-amber-300'"
             >
-              {{ antigravityReady ? t('providers.connected') : status?.antigravity.oauth_in_progress ? t('providers.oauthInProgress') : t('providers.notConnected') }}
+              {{ antigravityReady ? t('providers.connected') : status?.antigravity.oauth_in_progress ? t('providers.oauthInProgress') : !status?.antigravity.oauth_file_configured || !status?.antigravity.client_id_configured ? t('providers.notConfigured') : t('providers.notConnected') }}
             </span>
           </div>
 
@@ -273,7 +275,8 @@ onUnmounted(stopOAuthPolling)
             </label>
           </div>
 
-          <p v-if="environment.size" class="mt-2 text-xs text-gray-500">{{ t('providers.envLocked') }}</p>
+          <p v-if="['ANTIGRAVITY_OAUTH_FILE', 'ANTIGRAVITY_CLIENT_ID', 'ANTIGRAVITY_CLIENT_SECRET', 'ANTIGRAVITY_PROJECT_ID'].some(locked)" class="mt-2 text-xs text-gray-500">{{ t('providers.envLocked') }}</p>
+          <p v-if="props.config?.management_restart_required" class="mt-2 text-xs text-amber-300">{{ t('providers.restartPending') }}</p>
           <p v-if="status && !status.antigravity.credential_file_exists && status.antigravity.oauth_file_configured" class="mt-2 text-xs text-amber-300">
             {{ t('providers.credentialsMissing') }}
           </p>
