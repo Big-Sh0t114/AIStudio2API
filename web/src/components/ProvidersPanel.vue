@@ -76,9 +76,9 @@ async function refreshAll(): Promise<void> {
     else failures.push(errorText(results[1]?.reason))
     if (results[2]?.status === 'fulfilled') sources.value = results[2].value
     else failures.push(errorText(results[2]?.reason))
-    if (failures.length > 0) error.value = failures.join(' · ')
+    if (failures.length > 0) panelError.value = failures.join(' · ')
   } catch (e) {
-    error.value = errorText(e)
+    panelError.value = errorText(e)
   } finally {
     refreshing.value = false
   }
@@ -87,7 +87,7 @@ async function refreshAll(): Promise<void> {
 async function saveSettings(): Promise<void> {
   if (!props.config) return
   saving.value = true
-  error.value = ''
+  panelError.value = ''
   notice.value = ''
   try {
     const saved = await api.saveConfig({
@@ -104,7 +104,7 @@ async function saveSettings(): Promise<void> {
       : t('providers.saved')
     await refreshStatus()
   } catch (e) {
-    error.value = errorText(e)
+    panelError.value = errorText(e)
   } finally {
     saving.value = false
   }
@@ -133,10 +133,10 @@ function startOAuthPolling(): void {
   }, 2500)
 }
 async function startOAuth(): Promise<void> {
-  error.value = ''
+  panelError.value = ''
   notice.value = ''
   if (!props.config?.admin_auth_enabled) {
-    error.value = t('providers.adminAuthRequired')
+    panelError.value = t('providers.adminAuthRequired')
     return
   }
   const popup = window.open('about:blank', '_blank')
@@ -149,7 +149,7 @@ async function startOAuth(): Promise<void> {
     notice.value = t('providers.oauthHint')
   } catch (e) {
     popup?.close()
-    error.value = errorText(e)
+    panelError.value = errorText(e)
   } finally {
     startingOAuth.value = false
   }
@@ -168,7 +168,7 @@ async function copyModel(id: string): Promise<void> {
     const ok = document.execCommand('copy')
     textarea.remove()
     if (!ok) {
-      error.value = t('providers.copyFailed')
+      panelError.value = t('providers.copyFailed')
       return
     }
   }
