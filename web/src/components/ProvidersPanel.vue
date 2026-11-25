@@ -208,8 +208,8 @@ onUnmounted(stopOAuthPolling)
       <p v-if="props.error" role="alert" class="mb-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
         {{ props.error }}
       </p>
-      <p v-if="error" role="alert" class="mb-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-        {{ error }}
+      <p v-if="panelError" role="alert" class="mb-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+        {{ panelError }}
       </p>
       <p v-if="notice" role="status" class="mb-3 rounded border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-300">
         {{ notice }}
