@@ -166,10 +166,16 @@ export const api = {
     (await requestJSON<{ exits: AccountExit[] }>('/api/accounts/exits')).exits,
   models: async () => (await requestJSON<ModelsResponse>('/api/models')).models,
   alternateStatus: () => requestJSON<AlternateStatus>('/api/alternate/status'),
-  alternateModels: async () =>
-    ((await requestJSON<{ models?: AlternateModel[] | null }>('/api/alternate/models')).models ?? []),
-  notebookSources: async () =>
-    ((await requestJSON<{ sources?: PlaygroundSource[] | null }>('/api/notebook/sources')).sources ?? []),
+  alternateModels: async () => {
+    const response = await requestJSON<{ models?: AlternateModel[] | null }>('/api/alternate/models')
+    return response.models ?? []
+  },
+  notebookSources: async () => {
+    const response = await requestJSON<{ sources?: PlaygroundSource[] | null }>(
+      '/api/notebook/sources',
+    )
+    return response.sources ?? []
+  },
   startAntigravityOAuth: () =>
     requestJSON<{ authorization_url: string; callback: string }>(
       '/api/alternate/antigravity/oauth/start',
