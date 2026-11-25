@@ -98,6 +98,7 @@ export const messages: Record<TranslationKey, string> = {
   'providers.noModels': '目前沒有模型；請檢查授權狀態或重新整理模型目錄。',
   'providers.sources': '來源帳號',
   'providers.noSources': '沒有可用的 Playground 來源帳號。請先在服務管理 → AI Studio Playground 中新增並登入 Google 帳號。',
+  'providers.oauthHint': '已啟動本機 OAuth 回呼，請在開啟的 Google 頁面完成授權。',
   'providers.openAuthorization': '如果授權頁面沒有自動開啟，請點擊此處繼續。',
   'providers.envLocked': '由程序環境變數控制的欄位無法在此修改，請調整啟動環境或 .env 對應變數。',
   'providers.credentialsMissing': '憑證檔案尚不存在；完成 OAuth 後會自動建立。',
