@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - .github/workflows/format-export.yml
       - web/src/api.ts
       - web/src/components/ProvidersPanel.vue
       - web/src/locales/**
