@@ -80,10 +80,8 @@ export const messages: Record<TranslationKey, string> = {
   'providers.antigravityTitle': 'Antigravity',
   'providers.antigravityDescription':
     'Mit OAuth bei Google Cloud Code anmelden und die für dieses Konto verfügbaren Modelle abrufen.',
-  'providers.geminiWebTitle': 'Gemini Chat'
-  'providers.geminiWebDescription':
-    'Verwendet vorhandene Playground-Anmeldesitzungen für Gemini Web Chat; Modelle werden je Quellkonto aufgelistet.'
-    'Vorhandene Google-Sitzungen von Playground wiederverwenden; Modelle werden je Quellkonto aufgelistet.',
+  'providers.geminiWebTitle': 'Gemini Chat',
+  'providers.geminiWebDescription': 'Verwendet vorhandene Playground-Anmeldesitzungen für Gemini Web Chat; Modelle werden je Quellkonto aufgelistet.',
   'providers.oauthFile': 'Pfad zur OAuth-Anmeldedatei',
   'providers.clientID': 'OAuth Client ID',
   'providers.clientSecret': 'OAuth Client Secret',
@@ -104,9 +102,7 @@ export const messages: Record<TranslationKey, string> = {
   'providers.noModels':
     'Keine Modelle gefunden. Autorisierung prüfen oder Modellkatalog aktualisieren.',
   'providers.sources': 'Quellkonten',
-  'providers.noSources':
-    'Keine verfügbaren Playground-Quellkonten. Füge unter Dienste → AI Studio Playground zuerst ein Google-Konto hinzu und melde dich an.'
-    'Keine verfügbaren Playground-Quellkonten. Füge zuerst auf der Kontenseite ein Google-Konto hinzu und melde dich an.',
+  'providers.noSources': 'Keine verfügbaren Playground-Quellkonten. Füge unter Dienste → AI Studio Playground zuerst ein Google-Konto hinzu und melde dich an.',
   'providers.oauthHint':
     'Der lokale OAuth-Callback wartet. Schließe die Autorisierung auf der geöffneten Google-Seite ab.',
   'providers.openAuthorization':
