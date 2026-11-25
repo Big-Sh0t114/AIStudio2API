@@ -29,9 +29,12 @@ jobs:
           npx vp fmt src/api.ts src/components/ProvidersPanel.vue src/locales/*.ts
           cd ..
           tar -czf formatted-provider-ui.tar.gz web/src/api.ts web/src/components/ProvidersPanel.vue web/src/locales/*.ts
+          git diff -- web/src/api.ts web/src/components/ProvidersPanel.vue web/src/locales/*.ts > formatted-provider-ui.patch
       - uses: actions/upload-artifact@v7
         with:
           name: formatted-provider-ui-source
-          path: formatted-provider-ui.tar.gz
+          path: |
+            formatted-provider-ui.tar.gz
+            formatted-provider-ui.patch
           if-no-files-found: error
           retention-days: 1
