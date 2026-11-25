@@ -167,7 +167,9 @@ export const api = {
   models: async () => (await requestJSON<ModelsResponse>('/api/models')).models,
   alternateStatus: () => requestJSON<AlternateStatus>('/api/alternate/status'),
   alternateModels: async () => {
-    const response = await requestJSON<{ models?: AlternateModel[] | null }>('/api/alternate/models')
+    const response = await requestJSON<{ models?: AlternateModel[] | null }>(
+      '/api/alternate/models',
+    )
     return response.models ?? []
   },
   notebookSources: async () => {
