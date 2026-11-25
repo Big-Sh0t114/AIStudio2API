@@ -67,6 +67,13 @@ export const messages: Record<TranslationKey, string> = {
   'nav.requests': 'Refroidissements et requêtes',
   'nav.settings': 'Paramètres',
   'nav.playground': 'Tester l’API',
+  'nav.services': 'Services',
+  'services.title': 'Services amont',
+  'services.description': 'Gérez au même endroit les comptes, autorisations et catalogues de modèles de NotebookLM, Gemini Chat, Antigravity et AI Studio Playground.',
+  'services.notebook': 'NotebookLM',
+  'services.geminiChat': 'Gemini Chat',
+  'services.antigravity': 'Antigravity',
+  'services.playground': 'AI Studio Playground',
   'nav.providers': 'Fournisseurs',
   'providers.title': 'Gestion des fournisseurs',
   'providers.description':
@@ -74,8 +81,9 @@ export const messages: Record<TranslationKey, string> = {
   'providers.antigravityTitle': 'Antigravity',
   'providers.antigravityDescription':
     'Connectez-vous à Google Cloud Code avec OAuth et découvrez les modèles disponibles pour ce compte.',
-  'providers.geminiWebTitle': 'Gemini Web',
+  'providers.geminiWebTitle': 'Gemini Chat'
   'providers.geminiWebDescription':
+    'Utilise les sessions Playground existantes pour le chat Web Gemini ; les modèles sont répertoriés par compte source.'
     'Réutilise les sessions Google Playground existantes ; les modèles sont séparés par compte source.',
   'providers.oauthFile': 'Chemin du fichier d’identifiants OAuth',
   'providers.clientID': 'OAuth Client ID',
@@ -97,6 +105,7 @@ export const messages: Record<TranslationKey, string> = {
   'providers.noModels': 'Aucun modèle. Vérifiez l’autorisation ou actualisez le catalogue.',
   'providers.sources': 'comptes sources',
   'providers.noSources':
+    'Aucun compte source Playground disponible. Ajoutez et connectez un compte Google dans Services → AI Studio Playground.'
     'Aucun compte Playground disponible. Ajoutez et connectez d’abord un compte Google dans la page Comptes.',
   'providers.oauthHint':
     'Le rappel OAuth local écoute. Terminez l’autorisation dans la page Google ouverte.',
