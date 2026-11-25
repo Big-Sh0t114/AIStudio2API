@@ -80,10 +80,8 @@ export const messages: Record<TranslationKey, string> = {
   'providers.antigravityTitle': 'Antigravity',
   'providers.antigravityDescription':
     'Sign in to Google Cloud Code with OAuth and discover the models available to that account.',
-  'providers.geminiWebTitle': 'Gemini Chat'
-  'providers.geminiWebDescription':
-    'Use existing Playground sign-in sessions for Gemini web chat; models are listed separately for each source account.'
-    'Reuse existing Playground Google sessions; models are listed separately for each source account.',
+  'providers.geminiWebTitle': 'Gemini Chat',
+  'providers.geminiWebDescription': 'Use existing Playground sign-in sessions for Gemini web chat; models are listed separately for each source account.',
   'providers.oauthFile': 'OAuth credential file path',
   'providers.clientID': 'OAuth Client ID',
   'providers.clientSecret': 'OAuth Client Secret',
@@ -103,9 +101,7 @@ export const messages: Record<TranslationKey, string> = {
   'providers.models': 'Models',
   'providers.noModels': 'No models found. Check authorization or refresh the model catalog.',
   'providers.sources': 'source accounts',
-  'providers.noSources':
-    'No available Playground source accounts. Add and sign in to a Google account under Services → AI Studio Playground first.'
-    'No available Playground source accounts. Add and sign in to a Google account on the Accounts page first.',
+  'providers.noSources': 'No available Playground source accounts. Add and sign in to a Google account under Services → AI Studio Playground first.',
   'providers.oauthHint':
     'The local OAuth callback is listening. Complete authorization in the Google page that opened.',
   'providers.openAuthorization':
