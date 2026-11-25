@@ -66,6 +66,13 @@ export const messages: Record<TranslationKey, string> = {
   'nav.requests': 'Cooldowns & requests',
   'nav.settings': 'Settings',
   'nav.playground': 'API playground',
+  'nav.services': 'Services',
+  'services.title': 'Upstream services',
+  'services.description': 'Manage accounts, authorization, and model catalogs for NotebookLM, Gemini Chat, Antigravity, and AI Studio Playground in one place.',
+  'services.notebook': 'NotebookLM',
+  'services.geminiChat': 'Gemini Chat',
+  'services.antigravity': 'Antigravity',
+  'services.playground': 'AI Studio Playground',
   'nav.providers': 'Providers',
   'providers.title': 'Provider management',
   'providers.description':
@@ -73,8 +80,9 @@ export const messages: Record<TranslationKey, string> = {
   'providers.antigravityTitle': 'Antigravity',
   'providers.antigravityDescription':
     'Sign in to Google Cloud Code with OAuth and discover the models available to that account.',
-  'providers.geminiWebTitle': 'Gemini Web',
+  'providers.geminiWebTitle': 'Gemini Chat'
   'providers.geminiWebDescription':
+    'Use existing Playground sign-in sessions for Gemini web chat; models are listed separately for each source account.'
     'Reuse existing Playground Google sessions; models are listed separately for each source account.',
   'providers.oauthFile': 'OAuth credential file path',
   'providers.clientID': 'OAuth Client ID',
@@ -96,6 +104,7 @@ export const messages: Record<TranslationKey, string> = {
   'providers.noModels': 'No models found. Check authorization or refresh the model catalog.',
   'providers.sources': 'source accounts',
   'providers.noSources':
+    'No available Playground source accounts. Add and sign in to a Google account under Services → AI Studio Playground first.'
     'No available Playground source accounts. Add and sign in to a Google account on the Accounts page first.',
   'providers.oauthHint':
     'The local OAuth callback is listening. Complete authorization in the Google page that opened.',
