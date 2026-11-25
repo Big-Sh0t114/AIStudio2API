@@ -84,6 +84,7 @@ const activeProps = computed<Record<string, unknown>>(() => {
         cooldowns: props.cooldowns,
       }
   }
+  return {}
 })
 
 function handleRefresh(): void {
