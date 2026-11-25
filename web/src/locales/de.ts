@@ -99,6 +99,8 @@ export const messages: Record<TranslationKey, string> = {
   'providers.copy': "Modell-ID kopieren",
   'providers.copyFailed': "Kopieren fehlgeschlagen. Modell-ID manuell auswählen und kopieren.",
   'providers.antigravityModels': "Antigravity-Modelle",
+  'providers.notConfigured': "Nicht konfiguriert",
+  'providers.restartPending': "Die Einstellungen wurden gespeichert, sind in diesem Prozess aber noch nicht aktiv. Starte AIStudio2API neu, bevor du OAuth startest.",
   'nav.version': 'Version',
   'section.version.title': 'Version und Updates',
   'section.version.description':
